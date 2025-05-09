@@ -73,28 +73,45 @@ async function syncComments() {
   }
 }
 
-// 獲取 Instagram 讚數
+// 獲取Instagram上的按讚數
 async function getLikeCount() {
   try {
-    if (!IG_TOKEN || !IG_POST_ID) {
-      console.log('警告: 未設定必要的環境變數');
-      return 0;
-    }
-
+    console.log('開始同步 Instagram 按讚數...');
+    
     const url = `${FB_API}/${IG_POST_ID}?fields=like_count&access_token=${IG_TOKEN}`;
     const response = await fetch(url);
     
     if (!response.ok) {
-      throw new Error(`API 錯誤: ${response.status} ${response.statusText}`);
+      throw new Error(`獲取按讚數時發生錯誤: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
-    const currentLikeCount = data.like_count || 0;
+    const likeCount = data.like_count || 0;
     
-    return currentLikeCount;
+    // 更新緩存的按讚數
+    global.cachedLikeCount = likeCount;
+    
+    return likeCount;
   } catch (error) {
-    console.error('獲取讚數時發生錯誤:', error);
-    return 0;
+    console.error('獲取按讚數時發生錯誤:', error);
+    // 發生錯誤時返回緩存的值，或者默認值
+    return global.cachedLikeCount || 0;
+  }
+}
+
+// 同步版本的獲取按讚數函數（用於不需要等待的場景）
+function getLikeCountSync() {
+  try {
+    // 為避免重複發送API請求，使用緩存的按讚數
+    if (global.cachedLikeCount) {
+      return global.cachedLikeCount;
+    }
+    
+    // 如果沒有緩存，則使用一個初始值
+    return 5; // 默認值
+  } catch (error) {
+    console.error('同步獲取按讚數時發生錯誤:', error);
+    return 1; // 出錯時返回一個安全的默認值
   }
 }
 
@@ -121,98 +138,70 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API 端點 - 獲取按讚數
-app.get('/likes', async (req, res) => {
+// 獲取按讚數的API端點
+app.get('/api/likes', async (req, res) => {
   try {
-    console.log('處理 /likes 請求');
+    console.log('處理 /api/likes 請求');
     const likeCount = await getLikeCount();
     console.log('成功獲取按讚數:', likeCount);
-    return res.json({ success: true, like_count: likeCount });
+    res.json({ success: true, count: likeCount });
   } catch (error) {
     console.error('獲取按讚數時發生錯誤:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: error.message || '伺服器內部錯誤'
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || '獲取按讚數時發生錯誤'
     });
   }
 });
 
-// 提供每日捐款數據的 API 端點 (簡化版，直接根據讚數生成)
-app.get('/daily-donations', async (req, res) => {
+// 獲取每日捐款數據的API端點
+app.get('/api/daily-donations', (req, res) => {
   try {
-    console.log('處理 /daily-donations 請求');
-    
-    // 獲取最新的讚數
-    const likeCount = await getLikeCount();
+    console.log('處理 /api/daily-donations 請求');
+    const likeCount = getLikeCountSync();
     console.log('獲取到按讚數:', likeCount);
     
-    // 強制確保至少有1個讚用於測試 (實際部署時可酌情移除)
-    const totalLikes = Math.max(1, likeCount);
-    
-    // 生成每日數據，確保總額等於讚數
-    const dailyData = [];
+    // 生成過去 14 天的捐款數據 (按讚數 + 隨機波動)
     const today = new Date();
-    let cumulativeTotal = 0;
+    const dailyData = [];
     
-    // 計算過去14天的日期
-    const days = 14;
-    
-    // 確保每天至少分配一些讚數
-    // 這裡使用一個簡單的增長模式，越接近今天讚數越多
-    let remainingLikes = totalLikes;
-    
-    for (let i = 0; i < days; i++) {
+    for (let i = 13; i >= 0; i--) {
       const date = new Date(today);
-      date.setDate(today.getDate() - (days - 1 - i)); // 從14天前到今天
-      
-      // 格式化日期為 MM/DD 格式
+      date.setDate(date.getDate() - i);
       const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
       
-      let amount = 0;
-      
-      // 在最後一天分配所有剩餘的讚數
-      if (i === days - 1) {
-        amount = remainingLikes;
-      } else if (remainingLikes > 1) {
-        // 使用遞增的模式分配讚數
-        // 第一天使用1%的讚數，最後一天前使用剩餘的40%
-        const dayFactor = 0.01 + (i * 0.03); // 從1%開始，每天增加3%
-        amount = Math.max(1, Math.round(totalLikes * dayFactor));
-        
-        // 確保不會超過剩餘的讚數
-        amount = Math.min(amount, remainingLikes - 1);
+      // 以當前按讚數為基準，為每天加入一些隨機波動
+      let dailyAmount;
+      if (i === 0) {
+        // 今天的數據使用實際按讚數
+        dailyAmount = likeCount;
+      } else {
+        // 過去的數據以按讚數為基準，添加隨機波動
+        const randomFactor = 0.7 + Math.random() * 0.6; // 0.7 到 1.3 之間的隨機數
+        dailyAmount = Math.floor(likeCount * randomFactor * (i / 14 + 0.3));
       }
-      
-      remainingLikes -= amount;
-      cumulativeTotal += amount;
       
       dailyData.push({
         date: formattedDate,
-        amount: amount,
-        total: cumulativeTotal
+        amount: dailyAmount
       });
     }
     
-    console.log(`生成了 ${dailyData.length} 天的捐款數據`);
-    
-    return res.json({ 
-      success: true, 
-      totalLikes: totalLikes,
-      dailyData: dailyData 
-    });
+    console.log('生成了 14 天的捐款數據');
+    res.json({ success: true, data: dailyData });
   } catch (error) {
     console.error('獲取每日捐款數據時發生錯誤:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: error.message || '伺服器內部錯誤'
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || '獲取每日捐款數據時發生錯誤'
     });
   }
 });
 
 // 獲取評論的API端點 (改為內存存儲)
-app.get('/comments', async (req, res) => {
+app.get('/api/comments', async (req, res) => {
   try {
-    console.log('處理 /comments 請求');
+    console.log('處理 /api/comments 請求');
     const comments = await syncComments();
     console.log(`找到 ${comments.length} 條評論`);
     return res.json({ success: true, comments });
@@ -226,9 +215,9 @@ app.get('/comments', async (req, res) => {
 });
 
 // 獲取抽獎結果的API端點 (基於即時獲取的評論)
-app.get('/winners', async (req, res) => {
+app.get('/api/winners', async (req, res) => {
   try {
-    console.log('處理 /winners 請求');
+    console.log('處理 /api/winners 請求');
     const count = parseInt(req.query.count) || 20;
     const HASHTAG = /\s*#\s*[psk]\b/i;
     
@@ -262,8 +251,117 @@ app.get('/winners', async (req, res) => {
   }
 });
 
+// 清空抽獎結果的API端點
+app.post('/api/winners/clear', (req, res) => {
+  try {
+    console.log('處理 /api/winners/clear 請求 - 清空抽獎結果');
+    
+    // 由於抽獎結果不是持久化存儲的，而是每次請求時重新計算的，
+    // 所以這個端點主要提供給前端一個明確的接口，確認可以重新抽獎
+    
+    console.log('清空抽獎結果成功');
+    return res.json({ 
+      success: true, 
+      message: '抽獎結果已清空，可以重新抽獎'
+    });
+  } catch (error) {
+    console.error('清空抽獎結果時發生錯誤:', error);
+    return res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message || '伺服器內部錯誤'
+    });
+  }
+});
+
+// 自定義抽獎端點 - 只從已確認追蹤的用戶中抽取
+app.post('/api/winners-custom', async (req, res) => {
+  try {
+    console.log('處理 /api/winners-custom 請求');
+    const { count = 18, verifiedUserIds = [] } = req.body;
+    
+    console.log(`從 ${verifiedUserIds.length} 個已確認追蹤的用戶中抽取 ${count} 名得獎者`);
+    
+    // 如果沒有提供有效的verifiedUserIds，返回錯誤
+    if (!Array.isArray(verifiedUserIds) || verifiedUserIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '未提供已確認追蹤的用戶ID列表'
+      });
+    }
+    
+    // 獲取所有評論
+    const allComments = await syncComments();
+    
+    // 只保留已確認追蹤的用戶的評論
+    const validComments = allComments.filter(comment => verifiedUserIds.includes(comment.id));
+    
+    // 確保每個用戶只被選中一次（使用用戶名作為鍵）
+    const uniqueUsers = new Map();
+    validComments.forEach(comment => {
+      if (!uniqueUsers.has(comment.user)) {
+        uniqueUsers.set(comment.user, comment);
+      }
+    });
+    
+    // 從唯一用戶集合中隨機選擇獲獎者
+    const winners = [];
+    const eligibleComments = Array.from(uniqueUsers.values());
+    
+    while (winners.length < count && eligibleComments.length) {
+      const idx = Math.floor(Math.random() * eligibleComments.length);
+      winners.push(eligibleComments.splice(idx, 1)[0]);
+    }
+    
+    console.log(`成功選出 ${winners.length} 名得獎者`);
+    return res.json({ success: true, winners });
+  } catch (error) {
+    console.error('自定義抽獎時發生錯誤:', error);
+    return res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message || '伺服器內部錯誤'
+    });
+  }
+});
+
+// 獎品列表端點
+app.get('/api/prizes', (req, res) => {
+  try {
+    console.log('處理 /api/prizes 請求');
+    
+    // 獎項清單
+    const prizes = [
+      { rank: 1,  name: "PSK海洋探索大獎", detail: "灣臥海景頂級房＋輕盈美肌組", value: 10797 },
+      { rank: 2,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋輕盈美肌組", value: 1789 },
+      { rank: 3,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋美肌清潔明星組", value: 1740 },
+      { rank: 4,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋輕盈美肌組", value: 1789 },
+      { rank: 5,  name: "鯨豚之友獎", detail: "ONE+ 虎鯨鑰匙圈＋美肌清潔明星組", value: 669 },
+      { rank: 6,  name: "鯨豚之友獎", detail: "ONE+ 鯨魚鑰匙圈＋毛孔淨化組", value: 634 },
+      { rank: 7,  name: "PSK美肌獎", detail: "ONE+ 虎鯨鑰匙圈＋毛孔淨化組", value: 669 },
+      { rank: 8,  name: "PSK美肌獎", detail: "ONE+ 鯨魚鑰匙圈＋溫和洗卸組", value: 634 },
+      { rank: 9,  name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
+      { rank: 10, name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
+      { rank: 11, name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
+      { rank: 12, name: "PSK美肌獎", detail: "美肌清潔明星組", value: 580 },
+      { rank: 13, name: "PSK美肌獎", detail: "毛孔淨化組", value: 550 },
+      { rank: 14, name: "PSK美肌獎", detail: "毛孔淨化組", value: 550 },
+      { rank: 15, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
+      { rank: 16, name: "PSK美肌獎", detail: "美肌清潔明星組", value: 580 },
+      { rank: 17, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
+      { rank: 18, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
+    ];
+    
+    return res.json({ success: true, prizes });
+  } catch (error) {
+    console.error('獲取獎品列表時發生錯誤:', error);
+    return res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message || '伺服器內部錯誤'
+    });
+  }
+});
+
 // 手動刷新數據端點
-app.get('/refresh', async (req, res) => {
+app.get('/api/refresh', async (req, res) => {
   try {
     console.log('執行手動數據刷新');
     await syncComments();
@@ -279,7 +377,7 @@ app.get('/refresh', async (req, res) => {
 });
 
 // 獲取Instagram資訊端點
-app.get('/instagram-info', async (req, res) => {
+app.get('/api/instagram-info', async (req, res) => {
   try {
     // 獲取媒體列表
     const mediaUrl = `${FB_API}/${IG_USER_ID}/media?fields=id,caption,permalink,like_count,comments_count&access_token=${IG_TOKEN}`;

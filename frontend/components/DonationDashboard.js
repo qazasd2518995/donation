@@ -27,7 +27,7 @@ export default function DonationDashboard() {
       setLoading(true);
       
       // 加載按讚數據
-      const likesURL = `${API_BASE_URL}/likes`;
+      const likesURL = `${API_BASE_URL}/api/likes`;
       console.log('正在獲取按讚數據，URL:', likesURL);
       
       const likesResponse = await fetch(likesURL, {
@@ -45,10 +45,10 @@ export default function DonationDashboard() {
       
       const likesData = await likesResponse.json();
       console.log('成功獲取按讚數據:', likesData);
-      setLikes(likesData.like_count);
+      setLikes(likesData.count);
       
       // 加載每日捐款數據
-      const dailyURL = `${API_BASE_URL}/daily-donations`;
+      const dailyURL = `${API_BASE_URL}/api/daily-donations`;
       console.log('正在獲取每日捐款數據，URL:', dailyURL);
       
       const dailyResponse = await fetch(dailyURL, {
@@ -67,9 +67,9 @@ export default function DonationDashboard() {
       const dailyData = await dailyResponse.json();
       console.log('成功獲取每日捐款數據:', dailyData);
       
-      if (dailyData.dailyData && dailyData.dailyData.length > 0) {
-        setDailyData(dailyData.dailyData);
-        setTotalDonation(dailyData.dailyData[dailyData.dailyData.length - 1].total);
+      if (dailyData.data && dailyData.data.length > 0) {
+        setDailyData(dailyData.data);
+        setTotalDonation(dailyData.data[dailyData.data.length - 1].amount);
       } else {
         setError('每日捐款數據格式不正確');
       }

@@ -4,6 +4,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
 
+// 獎項清單
+const prizes = [
+  { rank: 1,  name: "PSK海洋探索大獎", detail: "灣臥海景頂級房＋輕盈美肌組", value: 10797 },
+  { rank: 2,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋輕盈美肌組", value: 1789 },
+  { rank: 3,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋美肌清潔明星組", value: 1740 },
+  { rank: 4,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋輕盈美肌組", value: 1789 },
+  { rank: 5,  name: "鯨豚之友獎", detail: "ONE+ 虎鯨鑰匙圈＋美肌清潔明星組", value: 669 },
+  { rank: 6,  name: "鯨豚之友獎", detail: "ONE+ 鯨魚鑰匙圈＋毛孔淨化組", value: 634 },
+  { rank: 7,  name: "PSK美肌獎", detail: "ONE+ 虎鯨鑰匙圈＋毛孔淨化組", value: 669 },
+  { rank: 8,  name: "PSK美肌獎", detail: "ONE+ 鯨魚鑰匙圈＋溫和洗卸組", value: 634 },
+  { rank: 9,  name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
+  { rank: 10, name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
+  { rank: 11, name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
+  { rank: 12, name: "PSK美肌獎", detail: "美肌清潔明星組", value: 580 },
+  { rank: 13, name: "PSK美肌獎", detail: "毛孔淨化組", value: 550 },
+  { rank: 14, name: "PSK美肌獎", detail: "毛孔淨化組", value: 550 },
+  { rank: 15, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
+  { rank: 16, name: "PSK美肌獎", detail: "美肌清潔明星組", value: 580 },
+  { rank: 17, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
+  { rank: 18, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
+];
+
 export default function WinnerPage() {
   const [winners, setWinners] = useState([]);
   const [comments, setComments] = useState([]);
@@ -16,6 +38,7 @@ export default function WinnerPage() {
   const [followingUsers, setFollowingUsers] = useState({});
   const [activeTab, setActiveTab] = useState('winners'); // 'winners' 或 'verify'
   const [filterHashtag, setFilterHashtag] = useState('all'); // 'all', 'P', 'S', 'K'
+  const [prizeList, setPrizeList] = useState([]);
   
   // 簡單密碼驗證函數
   const handleLogin = () => {
@@ -38,7 +61,7 @@ export default function WinnerPage() {
   async function fetchComments() {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/comments`, {
+      const response = await fetch(`${API_BASE_URL}/api/comments`, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -70,7 +93,7 @@ export default function WinnerPage() {
   async function fetchWinners() {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/winners?count=${count}`, {
+      const response = await fetch(`${API_BASE_URL}/api/winners?count=${count}`, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -87,6 +110,32 @@ export default function WinnerPage() {
     } catch (err) {
       console.error('獲取抽獎結果時出錯:', err);
       setError(`無法連接到服務器或獲取抽獎結果: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  async function fetchPrizes() {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/prizes`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-cache' // 防止緩存問題
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP錯誤! 狀態碼: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('獎品列表:', data);
+      setPrizeList(data.prizes || []);
+      setError(null);
+    } catch (err) {
+      console.error('獲取獎品列表時出錯:', err);
+      // 使用默認獎品列表作為備用
+      setPrizeList(prizes);
     } finally {
       setLoading(false);
     }
@@ -118,7 +167,7 @@ export default function WinnerPage() {
       }
       
       // 發送給後端執行抽獎，限定從已確認追蹤的用戶中抽
-      const response = await fetch(`${API_BASE_URL}/winners-custom`, {
+      const response = await fetch(`${API_BASE_URL}/api/winners-custom`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -167,9 +216,56 @@ export default function WinnerPage() {
     hasHashtag(comment.text, filterHashtag)
   );
   
+  // 清空抽獎結果
+  const clearWinners = async () => {
+    // 先進行確認
+    if (!window.confirm('確定要清空當前抽獎結果嗎？此操作不可恢復！')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      console.log('正在嘗試清空抽獎結果...');
+      console.log('呼叫端點:', `${API_BASE_URL}/api/winners/clear`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/winners/clear`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        console.error('清空抽獎結果失敗，狀態碼:', response.status);
+        throw new Error(`HTTP錯誤! 狀態碼: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('清空抽獎結果回應:', data);
+      
+      if (data.success) {
+        // 清空本地抽獎結果
+        setWinners([]);
+        setError(null);
+        // 顯示成功訊息
+        alert('抽獎結果已清空，您可以重新抽獎了');
+      } else {
+        throw new Error(data.message || '清空抽獎結果失敗');
+      }
+    } catch (err) {
+      console.error('清空抽獎結果時出錯:', err);
+      setError('清空抽獎結果失敗: ' + err.message);
+      alert('清空抽獎結果失敗: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   useEffect(() => {
     fetchWinners();
     fetchComments();
+    fetchPrizes();
     
     // 檢查是否已登入
     const adminStatus = localStorage.getItem('drawAdmin');
@@ -246,7 +342,7 @@ export default function WinnerPage() {
                   {isAdmin ? (
                     <div className="flex items-center flex-wrap gap-4 mt-4 md:mt-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-secondary font-medium">固定抽出 18 名幸運得獎者</span>
+                        <span className="text-secondary font-medium">固定抽出 {count} 名幸運得獎者</span>
                       </div>
                       
                       <button
@@ -262,6 +358,14 @@ export default function WinnerPage() {
                         className="px-4 py-2 bg-secondary rounded-lg hover:bg-opacity-80 transition-colors disabled:opacity-50"
                       >
                         從已確認用戶中抽獎
+                      </button>
+                      
+                      <button
+                        onClick={clearWinners}
+                        disabled={loading || winners.length === 0}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-opacity-80 transition-colors disabled:opacity-50"
+                      >
+                        清空抽獎結果
                       </button>
                     </div>
                   ) : (
@@ -319,22 +423,43 @@ export default function WinnerPage() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <AnimatePresence>
-                      {winners.map((winner, index) => (
-                        <motion.div
-                          key={winner.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="bg-white/10 p-4 rounded-lg"
-                        >
-                          <div className="font-bold truncate">{winner.user}</div>
-                          <div className="text-sm opacity-70 mt-2 line-clamp-2">{winner.text}</div>
-                          {isAdmin && followingUsers[winner.id] && (
-                            <div className="mt-2 text-xs bg-green-500/20 px-2 py-1 rounded inline-block">已確認追蹤</div>
-                          )}
-                        </motion.div>
-                      ))}
+                      {winners.map((winner, index) => {
+                        const prize = index < prizeList.length ? prizeList[index] : null;
+                        return (
+                          <motion.div
+                            key={winner.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="bg-white/10 p-4 rounded-lg"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="font-bold truncate">{winner.user}</div>
+                              {prize && (
+                                <div className="bg-secondary/80 text-xs px-2 py-1 rounded-full text-white">
+                                  第 {prize.rank} 名
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-sm opacity-70 mt-2 line-clamp-2">{winner.text}</div>
+                            {prize && (
+                              <div className="mt-3 bg-white/10 p-2 rounded text-sm">
+                                <div className="font-bold text-secondary">{prize.name}</div>
+                                <div>{prize.detail}</div>
+                                {prize.value > 0 && (
+                                  <div className="text-xs mt-1 opacity-70">
+                                    價值 NT$ {prize.value.toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {isAdmin && followingUsers[winner.id] && (
+                              <div className="mt-2 text-xs bg-green-500/20 px-2 py-1 rounded inline-block">已確認追蹤</div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
                     </AnimatePresence>
                   </div>
                 )}
