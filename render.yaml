@@ -1,0 +1,27 @@
+services:
+  # 後端服務
+  - type: web
+    name: ig-hashtag-backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: IG_TOKEN
+        sync: false
+      - key: IG_POST_ID
+        sync: false
+      - key: PORT
+        value: 10000
+
+  # 前端服務
+  - type: web
+    name: donation-dashboard-frontend
+    env: node
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start
+    envVars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        fromService:
+          name: ig-hashtag-backend
+          type: web
+          property: url 
