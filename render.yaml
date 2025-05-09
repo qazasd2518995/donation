@@ -8,13 +8,10 @@ services:
     startCommand: cd backend && node app.js
     envVars:
       - key: IG_TOKEN
-        sync: false
         value: "EAAZABZBFyTPjUBO81GfrzZBLej4EhHFZAL2a996JziCFuybnEehqSKMJnee7aRcBJE0j2saqWZCQb22ydzx6ysul8dyaJ0sh6sTV0SC10PhDHh7FVqNyMkjfYAaDyOncZAPsiqX7aqhacRvKZAuJb4w5YjIvwgvy7wdSqbouJtecOkSdZBCKPuywEx51cI93qPvKkrZBdJOZBZA"
       - key: IG_USER_ID
-        sync: false
         value: "17841474086492936"
       - key: IG_POST_ID
-        sync: false
         value: "18079076146744868"
       - key: PORT
         value: 10000
@@ -28,7 +25,4 @@ services:
     startCommand: cd frontend && npm start
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
-        fromService:
-          name: ig-hashtag-backend
-          type: web
-          property: url 
+        value: "https://ig-hashtag-backend.onrender.com" 
