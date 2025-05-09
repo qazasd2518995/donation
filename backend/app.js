@@ -1,18 +1,10 @@
-// IG Hashtag 抽獎系統後端
+// IG Hashtag 抽獎系統後端 (簡化版)
 import 'dotenv/config';
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
-// 引入數據庫連接和模型
-import connectDB from './models/db.js';
-import Comment from './models/Comment.js';
-import LikeRecord from './models/LikeRecord.js';
-
-// 連接到MongoDB
-connectDB();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,6 +34,7 @@ async function syncComments() {
     console.log(`正在從 ${url} 獲取評論...`);
     let next = url;
     let count = 0;
+    let comments = [];
 
     while (next) {
       const response = await fetch(next);
@@ -57,47 +50,35 @@ async function syncComments() {
         break;
       }
 
-      // 將新評論添加到MongoDB中
+      // 將評論儲存在內存中
       for (const c of data) {
-        try {
-          await Comment.findOneAndUpdate(
-            { id: c.id }, 
-            {
-              id: c.id,
-              user: c.username || c.from?.name || 'unknown',
-              text: c.text,
-              ts: Date.parse(c.timestamp)
-            },
-            { upsert: true, new: true }
-          );
-          count++;
-        } catch (error) {
-          console.error(`儲存評論 ${c.id} 時出錯:`, error);
-        }
+        comments.push({
+          id: c.id,
+          user: c.username || c.from?.name || 'unknown',
+          text: c.text,
+          ts: Date.parse(c.timestamp)
+        });
+        count++;
       }
       
       next = paging?.next;
     }
     
     console.log(`同步完成! 已處理 ${count} 則評論`);
+    return comments;
     
   } catch (error) {
     console.error('同步評論時發生錯誤:', error);
+    return [];
   }
 }
 
-// 同步 Instagram 讚數並記錄變化
-async function syncLikes() {
-  console.log('開始同步 Instagram 按讚數...');
+// 獲取 Instagram 讚數
+async function getLikeCount() {
   try {
-    if (!IG_TOKEN) {
-      console.log('警告: 未設定 IG_TOKEN 環境變數');
-      return;
-    }
-
-    if (!IG_POST_ID) {
-      console.log('警告: 未找到有效的貼文ID');
-      return;
+    if (!IG_TOKEN || !IG_POST_ID) {
+      console.log('警告: 未設定必要的環境變數');
+      return 0;
     }
 
     const url = `${FB_API}/${IG_POST_ID}?fields=like_count&access_token=${IG_TOKEN}`;
@@ -109,283 +90,149 @@ async function syncLikes() {
     
     const data = await response.json();
     const currentLikeCount = data.like_count || 0;
-    const currentTime = new Date();
-    const dateString = `${currentTime.getMonth() + 1}/${currentTime.getDate()}`;
     
-    // 檢查是否有前一筆記錄
-    const previousRecord = await LikeRecord.findOne({ postId: IG_POST_ID }).sort({ timestamp: -1 });
-    
-    // 只有當讚數增加時才記錄
-    if (!previousRecord || currentLikeCount > previousRecord.count) {
-      const newLikes = previousRecord ? currentLikeCount - previousRecord.count : currentLikeCount;
-      
-      // 將新的讚數變化和時間加入歷史記錄
-      await LikeRecord.create({
-        count: currentLikeCount,
-        newLikes: newLikes,
-        date: dateString,
-        timestamp: currentTime,
-        postId: IG_POST_ID
-      });
-      
-      console.log(`讚數更新: ${currentLikeCount} (新增 ${newLikes} 個讚), 時間: ${currentTime.toLocaleString()}`);
-    }
-    
+    return currentLikeCount;
   } catch (error) {
-    console.error('同步讚數時發生錯誤:', error);
+    console.error('獲取讚數時發生錯誤:', error);
+    return 0;
   }
 }
-
-// 定期同步評論
-setInterval(syncComments, 60000); // 每分鐘同步一次
-syncComments(); // 初始同步
-
-// 定期同步讚數
-setInterval(syncLikes, 60000); // 每分鐘同步一次
-syncLikes(); // 初始同步
 
 // 設定 Express
 const app = express();
 // 加強 CORS 配置，解決前端跨域問題
 app.use(cors({
-  origin: '*', // 允許所有來源訪問
-  credentials: true,
+  origin: '*',  // 允許所有來源
+  credentials: false,  // 關閉 credentials
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With', 
-    'Accept',
-    'Origin',
-    'Cache-Control',
-    'X-Auth-Token',
-    'Access-Control-Allow-Headers'
-  ],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization']
 }));
 app.use(express.json());
 
-// API 端點
-app.get('/comments', async (req, res) => {
-  try {
-    const comments = await Comment.find({});
-    res.json({ success: true, comments });
-  } catch (error) {
-    console.error('獲取評論時發生錯誤:', error);
-    res.status(500).json({ success: false, error: '伺服器內部錯誤' });
-  }
+// 添加調試中間件
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Headers:', req.headers);
+  next();
 });
 
+// 簡單的健康檢查端點
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API 端點 - 獲取按讚數
 app.get('/likes', async (req, res) => {
   try {
-    let likeCount = 0;
-    
-    // 直接從指定的貼文ID獲取按讚數
-    if (IG_POST_ID) {
-      const response = await fetch(`${FB_API}/${IG_POST_ID}?fields=like_count&access_token=${IG_TOKEN}`);
-      
-      if (!response.ok) {
-        throw new Error(`API 錯誤: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      likeCount = data.like_count || 0;
-    }
-
-    res.json({ success: true, like_count: likeCount });
+    console.log('處理 /likes 請求');
+    const likeCount = await getLikeCount();
+    console.log('成功獲取按讚數:', likeCount);
+    return res.json({ success: true, like_count: likeCount });
   } catch (error) {
     console.error('獲取按讚數時發生錯誤:', error);
-    res.json({ success: true, like_count: 0 });
+    return res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message || '伺服器內部錯誤'
+    });
   }
 });
 
-// 提供每日捐款數據的 API 端點 - 使用真實Instagram數據和記錄的讚數變化
-app.get('/api/daily-donations', async (req, res) => {
-  try {
-    // 獲取最新的讚數
-    let likeCount = 0;
-    const latestRecord = await LikeRecord.findOne({ postId: IG_POST_ID }).sort({ timestamp: -1 });
-    
-    if (latestRecord) {
-      likeCount = latestRecord.count;
-    } else {
-      // 如果還沒有歷史記錄，嘗試直接從API獲取
-      try {
-        const likeResponse = await fetch(`${FB_API}/${IG_POST_ID}?fields=like_count&access_token=${IG_TOKEN}`);
-        
-        if (!likeResponse.ok) {
-          throw new Error(`API 錯誤: ${likeResponse.status} ${likeResponse.statusText}`);
-        }
-        
-        const likeData = await likeResponse.json();
-        likeCount = likeData.like_count || 0;
-        console.log('獲取到真實按讚數:', likeCount);
-      } catch (error) {
-        console.error('獲取按讚數時發生錯誤:', error);
-        return res.status(500).json({ success: false, error: '無法獲取Instagram數據' });
-      }
-    }
-    
-    // 根據實際記錄的數據生成每日數據
-    const today = new Date();
-    const dailyData = [];
-    
-    // 嘗試從MongoDB中獲取所有讚數歷史記錄
-    const likeRecords = await LikeRecord.find({ postId: IG_POST_ID }).sort({ timestamp: 1 });
-    
-    if (likeRecords.length > 0) {
-      // 使用記錄的歷史數據構建日期分佈
-      // 先按日期分組，合併同一天的讚數
-      const groupedByDate = {};
-      
-      for (const record of likeRecords) {
-        if (!groupedByDate[record.date]) {
-          groupedByDate[record.date] = 0;
-        }
-        groupedByDate[record.date] += record.newLikes;
-      }
-      
-      // 轉換成數組形式
-      for (const date in groupedByDate) {
-        dailyData.push({
-          date: date,
-          amount: groupedByDate[date]
-        });
-      }
-      
-      // 如果歷史記錄不足14天，補充前面的日期
-      const recordedDays = Object.keys(groupedByDate).length;
-      if (recordedDays < 14) {
-        // 計算要補充的天數
-        const daysToAdd = 14 - recordedDays;
-        const earliestDate = new Date(today);
-        earliestDate.setDate(today.getDate() - 13); // 14天前
-        
-        // 補充缺失的日期
-        for (let i = 0; i < daysToAdd; i++) {
-          const date = new Date(earliestDate);
-          date.setDate(earliestDate.getDate() + i);
-          
-          const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
-          
-          // 檢查這個日期是否已存在於數據中
-          if (!groupedByDate[formattedDate]) {
-            dailyData.push({
-              date: formattedDate,
-              amount: 0
-            });
-          }
-        }
-      }
-      
-      // 按日期排序
-      dailyData.sort((a, b) => {
-        const [aMonth, aDay] = a.date.split('/').map(Number);
-        const [bMonth, bDay] = b.date.split('/').map(Number);
-        
-        if (aMonth !== bMonth) {
-          return aMonth - bMonth;
-        }
-        return aDay - bDay;
-      });
-      
-    } else {
-      // 如果沒有歷史記錄，則使用生成的數據
-      // 確保總和等於真實按讚數
-      const dailyAverage = Math.ceil(likeCount / 14); // 平均每日的按讚數
-      let remaining = likeCount;
-      
-      // 生成過去13天和今天的數據
-      for (let i = 13; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        
-        // 格式化日期為 MM/DD 格式
-        const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
-        
-        let amount = 0;
-        
-        if (i === 0) {
-          // 今天的數值是剩餘的所有按讚數，確保至少有1個
-          amount = Math.max(1, remaining);
-        } else {
-          // 數值呈現成長趨勢，但確保今天有按讚數
-          const growth = 1 + ((13 - i) / 13); // 成長係數，從1到2
-          amount = Math.min(Math.floor(dailyAverage * growth * 0.4), remaining);
-          remaining -= amount;
-        }
-        
-        dailyData.push({
-          date: formattedDate,
-          amount: amount
-        });
-      }
-    }
-    
-    // 計算累計總額
-    let cumulativeTotal = 0;
-    const cumulativeData = dailyData.map(day => {
-      cumulativeTotal += day.amount;
-      return {
-        ...day,
-        total: cumulativeTotal
-      };
-    });
-    
-    res.json({ 
-      success: true, 
-      totalLikes: likeCount,
-      dailyData: cumulativeData 
-    });
-  } catch (error) {
-    console.error('獲取每日捐款數據時發生錯誤:', error);
-    res.status(500).json({ success: false, error: '伺服器內部錯誤' });
-  }
-});
-
-// 獲取讚數歷史記錄的API端點
-app.get('/api/likes-history', async (req, res) => {
-  try {
-    const history = await LikeRecord.find({ postId: IG_POST_ID }).sort({ timestamp: 1 });
-    res.json({ 
-      success: true, 
-      history 
-    });
-  } catch (error) {
-    console.error('獲取讚數歷史記錄時發生錯誤:', error);
-    res.status(500).json({ success: false, error: '伺服器內部錯誤' });
-  }
-});
-
-// 兼容舊路徑的捐款數據API
+// 提供每日捐款數據的 API 端點 (簡化版，直接根據讚數生成)
 app.get('/daily-donations', async (req, res) => {
   try {
-    // 轉發到新API端點
-    const response = await new Promise((resolve) => {
-      app._router.handle({ 
-        url: '/api/daily-donations', 
-        method: 'GET' 
-      }, {
-        json: resolve,
-        status: () => ({ json: resolve })
-      }, () => {});
-    });
+    console.log('處理 /daily-donations 請求');
     
-    res.json(response);
+    // 獲取最新的讚數
+    const likeCount = await getLikeCount();
+    console.log('獲取到按讚數:', likeCount);
+    
+    // 強制確保至少有1個讚用於測試 (實際部署時可酌情移除)
+    const totalLikes = Math.max(1, likeCount);
+    
+    // 生成每日數據，確保總額等於讚數
+    const dailyData = [];
+    const today = new Date();
+    let cumulativeTotal = 0;
+    
+    // 計算過去14天的日期
+    const days = 14;
+    
+    // 確保每天至少分配一些讚數
+    // 這裡使用一個簡單的增長模式，越接近今天讚數越多
+    let remainingLikes = totalLikes;
+    
+    for (let i = 0; i < days; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (days - 1 - i)); // 從14天前到今天
+      
+      // 格式化日期為 MM/DD 格式
+      const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+      
+      let amount = 0;
+      
+      // 在最後一天分配所有剩餘的讚數
+      if (i === days - 1) {
+        amount = remainingLikes;
+      } else if (remainingLikes > 1) {
+        // 使用遞增的模式分配讚數
+        // 第一天使用1%的讚數，最後一天前使用剩餘的40%
+        const dayFactor = 0.01 + (i * 0.03); // 從1%開始，每天增加3%
+        amount = Math.max(1, Math.round(totalLikes * dayFactor));
+        
+        // 確保不會超過剩餘的讚數
+        amount = Math.min(amount, remainingLikes - 1);
+      }
+      
+      remainingLikes -= amount;
+      cumulativeTotal += amount;
+      
+      dailyData.push({
+        date: formattedDate,
+        amount: amount,
+        total: cumulativeTotal
+      });
+    }
+    
+    console.log(`生成了 ${dailyData.length} 天的捐款數據`);
+    
+    return res.json({ 
+      success: true, 
+      totalLikes: totalLikes,
+      dailyData: dailyData 
+    });
   } catch (error) {
     console.error('獲取每日捐款數據時發生錯誤:', error);
-    res.status(500).json({ success: false, error: '伺服器內部錯誤' });
+    return res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message || '伺服器內部錯誤'
+    });
   }
 });
 
+// 獲取評論的API端點 (改為內存存儲)
+app.get('/comments', async (req, res) => {
+  try {
+    console.log('處理 /comments 請求');
+    const comments = await syncComments();
+    console.log(`找到 ${comments.length} 條評論`);
+    return res.json({ success: true, comments });
+  } catch (error) {
+    console.error('獲取評論時發生錯誤:', error);
+    return res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message || '伺服器內部錯誤'
+    });
+  }
+});
+
+// 獲取抽獎結果的API端點 (基於即時獲取的評論)
 app.get('/winners', async (req, res) => {
   try {
+    console.log('處理 /winners 請求');
     const count = parseInt(req.query.count) || 20;
-    // 更新正則表達式以匹配帶空格和不區分大小寫的標籤
     const HASHTAG = /\s*#\s*[psk]\b/i;
     
-    // 從MongoDB獲取所有評論
-    const allComments = await Comment.find({});
+    const allComments = await syncComments();
     
     const uniqueUsers = new Map();
     allComments.forEach(comment => {
@@ -397,29 +244,37 @@ app.get('/winners', async (req, res) => {
     const validComments = Array.from(uniqueUsers.values());
     
     const winners = [];
-    const tempComments = [...validComments]; // 複製陣列以便修改
+    const tempComments = [...validComments];
     
     while (winners.length < count && tempComments.length) {
       const idx = Math.floor(Math.random() * tempComments.length);
       winners.push(tempComments.splice(idx, 1)[0]);
     }
     
-    res.json({ success: true, winners });
+    console.log(`選出 ${winners.length} 名得獎者`);
+    return res.json({ success: true, winners });
   } catch (error) {
     console.error('選擇得獎者時發生錯誤:', error);
-    res.status(500).json({ success: false, error: '伺服器內部錯誤' });
+    return res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message || '伺服器內部錯誤'
+    });
   }
 });
 
 // 手動刷新數據端點
 app.get('/refresh', async (req, res) => {
   try {
+    console.log('執行手動數據刷新');
     await syncComments();
-    await syncLikes();
-    res.json({ success: true, message: '數據已更新' });
+    const likeCount = await getLikeCount();
+    res.json({ success: true, message: '數據已更新', likes: likeCount });
   } catch (error) {
     console.error('手動刷新時發生錯誤:', error);
-    res.status(500).json({ success: false, error: '伺服器內部錯誤' });
+    res.status(500).json({ 
+      error: 'Internal Server Error', 
+      message: error.message || '伺服器內部錯誤'
+    });
   }
 });
 
@@ -459,118 +314,53 @@ app.get('/instagram-info', async (req, res) => {
   }
 });
 
-// 狀態檢查端點
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+// 添加 404 處理 - 需在所有路由之後
+app.use((req, res) => {
+  console.log(`404 - 找不到路徑: ${req.url}`);
+  res.status(404).json({
+    error: 'Not Found',
+    message: `找不到請求的資源: ${req.url}`
+  });
 });
 
-// 如果指定了靜態資源目錄，提供靜態文件
-const STATIC_DIR = path.join(__dirname, '../frontend/out');
-app.use(express.static(STATIC_DIR));
+// 添加全局錯誤處理中間件 - 需在最後
+app.use((err, req, res, next) => {
+  console.error('全局錯誤處理:', {
+    message: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    headers: req.headers
+  });
 
-// 新增路由：獲取所有帶有hashtag的評論
-app.get('/comments', async (req, res) => {
-  try {
-    // 從MongoDB獲取所有評論
-    const allComments = await Comment.find({});
-    
-    // 篩選出帶有hashtag的評論
-    const hashtagComments = allComments.filter(comment => {
-      const text = comment.text.toLowerCase();
-      return /\s*#\s*p\b/i.test(text) || /\s*#\s*s\b/i.test(text) || /\s*#\s*k\b/i.test(text);
-    }).map(comment => ({
-      id: comment.id,
-      user: comment.user,
-      username: comment.user.replace(/\s+/g, '').toLowerCase(), // 從用戶名生成username，去除空格並轉小寫
-      text: comment.text,
-      timestamp: comment.ts,
-      verified: comment.verified || false
-    }));
-    
-    res.json({ 
-      comments: hashtagComments,
-      total: hashtagComments.length
-    });
-  } catch (error) {
-    console.error('獲取評論時出錯:', error);
-    res.status(500).json({ error: '內部伺服器錯誤' });
-  }
-});
-
-// 更新評論驗證狀態
-app.post('/comments/verify', async (req, res) => {
-  try {
-    const { commentId, verified } = req.body;
-    
-    if (!commentId) {
-      return res.status(400).json({ error: '缺少評論ID' });
-    }
-    
-    const comment = await Comment.findOne({ id: commentId });
-    
-    if (!comment) {
-      return res.status(404).json({ error: '找不到指定評論' });
-    }
-    
-    comment.verified = !!verified;
-    await comment.save();
-    
-    res.json({ success: true, comment });
-  } catch (error) {
-    console.error('更新評論驗證狀態時出錯:', error);
-    res.status(500).json({ error: '內部伺服器錯誤' });
-  }
-});
-
-// 新增路由：從特定用戶ID列表中抽獎
-app.post('/winners-custom', async (req, res) => {
-  try {
-    const { count = 18, verifiedUserIds = [] } = req.body;
-    
-    // 驗證請求參數
-    if (!Array.isArray(verifiedUserIds) || verifiedUserIds.length === 0) {
-      return res.status(400).json({ error: '未提供有效的用戶ID列表' });
-    }
-    
-    // 從MongoDB獲取所有評論
-    const allComments = await Comment.find({ id: { $in: verifiedUserIds } });
-    
-    // 過濾出有hashtag的評論
-    const verifiedComments = allComments.filter(comment => 
-      /\s*#\s*p\b/i.test(comment.text.toLowerCase()) || 
-      /\s*#\s*s\b/i.test(comment.text.toLowerCase()) || 
-      /\s*#\s*k\b/i.test(comment.text.toLowerCase())
-    );
-    
-    // 確認有足夠的評論可供抽獎
-    if (verifiedComments.length < count) {
-      return res.status(400).json({ 
-        error: `合格的用戶不足，需要 ${count} 人但只有 ${verifiedComments.length} 人符合條件` 
-      });
-    }
-    
-    // 隨機抽取獲獎者
-    const shuffled = [...verifiedComments].sort(() => 0.5 - Math.random());
-    const selectedWinners = shuffled.slice(0, count);
-    
-    // 格式化回傳結果
-    const winners = selectedWinners.map(comment => ({
-      id: comment.id,
-      user: comment.user,
-      text: comment.text,
-      timestamp: comment.ts
-    }));
-    
-    res.json({ winners });
-  } catch (error) {
-    console.error('執行自定義抽獎時出錯:', error);
-    res.status(500).json({ error: '內部伺服器錯誤' });
-  }
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: err.message || '伺服器內部錯誤'
+  });
 });
 
 // 啟動服務
-app.listen(PORT, () => {
-  console.log(`伺服器已啟動在 http://localhost:${PORT}`);
-  console.log(`Instagram 用戶 ID: ${IG_USER_ID}`);
-  console.log(`Instagram 貼文 ID: ${IG_POST_ID}`);
-}); 
+const startServer = async () => {
+  try {
+    // 啟動服務
+    app.listen(PORT, () => {
+      console.log(`伺服器已啟動在 http://localhost:${PORT}`);
+      console.log(`Instagram 用戶 ID: ${IG_USER_ID}`);
+      console.log(`Instagram 貼文 ID: ${IG_POST_ID}`);
+      
+      // 初始同步
+      try {
+        // 設置定時任務
+        setInterval(syncComments, 60000); // 每分鐘同步一次
+      } catch (error) {
+        console.error('初始同步失敗:', error);
+      }
+    });
+  } catch (error) {
+    console.error('伺服器啟動失敗:', error);
+    process.exit(1);
+  }
+};
+
+// 啟動伺服器
+startServer(); 

@@ -38,11 +38,18 @@ export default function WinnerPage() {
   async function fetchComments() {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/comments`);
+      const response = await fetch(`${API_BASE_URL}/comments`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-cache' // 防止緩存問題
+      });
       if (!response.ok) {
-        throw new Error('無法獲取留言資料');
+        throw new Error(`HTTP錯誤! 狀態碼: ${response.status}`);
       }
       const data = await response.json();
+      console.log('評論數據:', data);
       setComments(data.comments || []);
       
       // 從localStorage恢復已確認的追蹤狀態
@@ -54,7 +61,7 @@ export default function WinnerPage() {
       setError(null);
     } catch (err) {
       console.error('獲取留言資料時出錯:', err);
-      setError('無法連接到服務器或獲取留言資料');
+      setError(`無法連接到服務器或獲取留言資料: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -63,16 +70,23 @@ export default function WinnerPage() {
   async function fetchWinners() {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/winners?count=${count}`);
+      const response = await fetch(`${API_BASE_URL}/winners?count=${count}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-cache' // 防止緩存問題
+      });
       if (!response.ok) {
-        throw new Error('無法獲取抽獎結果');
+        throw new Error(`HTTP錯誤! 狀態碼: ${response.status}`);
       }
       const data = await response.json();
+      console.log('抽獎結果:', data);
       setWinners(data.winners || []);
       setError(null);
     } catch (err) {
       console.error('獲取抽獎結果時出錯:', err);
-      setError('無法連接到服務器或獲取抽獎結果');
+      setError(`無法連接到服務器或獲取抽獎結果: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -107,6 +121,7 @@ export default function WinnerPage() {
       const response = await fetch(`${API_BASE_URL}/winners-custom`, {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
