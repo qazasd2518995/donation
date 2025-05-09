@@ -17,7 +17,7 @@ services:
       - key: PORT
         value: 10000
       - key: MONGODB_URI
-        value: "mongodb+srv://username:password@cluster0.mongodb.net/donation-db?retryWrites=true&w=majority"
+        value: "mongodb+srv://qazasd2518995:MrHh2iFsmq4UBQx6@psk.1itnx3e.mongodb.net/?retryWrites=true&w=majority&appName=PSK"
 
   # 前端服務
   - type: web
