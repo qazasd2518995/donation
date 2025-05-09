@@ -6,6 +6,7 @@ services:
     repo: https://github.com/qazasd2518995/donation.git
     buildCommand: cd backend && npm install
     startCommand: cd backend && node app.js
+    plan: free
     envVars:
       - key: IG_TOKEN
         value: "EAAZABZBFyTPjUBO81GfrzZBLej4EhHFZAL2a996JziCFuybnEehqSKMJnee7aRcBJE0j2saqWZCQb22ydzx6ysul8dyaJ0sh6sTV0SC10PhDHh7FVqNyMkjfYAaDyOncZAPsiqX7aqhacRvKZAuJb4w5YjIvwgvy7wdSqbouJtecOkSdZBCKPuywEx51cI93qPvKkrZBdJOZBZA"
@@ -23,6 +24,7 @@ services:
     repo: https://github.com/qazasd2518995/donation.git
     buildCommand: cd frontend && npm install && npm run build
     startCommand: cd frontend && npm start
+    plan: free
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
         value: "https://ig-hashtag-backend.onrender.com" 
