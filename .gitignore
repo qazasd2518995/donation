@@ -3,6 +3,7 @@ node_modules/
 npm-debug.log
 yarn-debug.log
 yarn-error.log
+.pnpm-debug.log
 
 # 環境變數
 .env
@@ -41,4 +42,10 @@ build/
 
 # 套件鎖定檔案
 # package-lock.json
-# yarn.lock 
+# yarn.lock
+
+# IDE/編輯器文件
+.idea/
+.editorconfig
+*.swp
+*.swo 

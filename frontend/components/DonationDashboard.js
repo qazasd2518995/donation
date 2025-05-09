@@ -1,47 +1,109 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+// 通過環境變數獲取API基礎URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
 
 export default function DonationDashboard() {
   const [likes, setLikes] = useState(0);
+  const [dailyData, setDailyData] = useState([]);
+  const [totalDonation, setTotalDonation] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  const target = 10000; // 目標金額 NT$
-  
   useEffect(() => {
     // 初始加載
-    loadLikes();
+    loadData();
     
     // 設定定時更新 (每 30 秒)
-    const intervalId = setInterval(loadLikes, 30000);
+    const intervalId = setInterval(loadData, 30000);
     
     // 清理函數
     return () => clearInterval(intervalId);
   }, []);
   
-  async function loadLikes() {
+  async function loadData() {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/likes`);
-      if (!response.ok) {
-        throw new Error('無法獲取按讚數');
+      
+      // 加載按讚數據 - 專注獲取真實數據
+      const likesURL = `${API_BASE_URL}/likes`;
+      console.log('正在獲取按讚數據，URL:', likesURL);
+      try {
+        // 使用配置優化的GET請求
+        const likesResponse = await fetch(likesURL, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          },
+          mode: 'cors',
+          credentials: 'omit' // 不發送認證信息，減少跨域問題
+        });
+        console.log('按讚數據回應狀態:', likesResponse.status);
+        
+        if (likesResponse.ok) {
+          const likesData = await likesResponse.json();
+          console.log('成功獲取按讚數據:', likesData);
+          setLikes(likesData.like_count);
+          
+          // 加載每日捐款數據 - 專注獲取真實數據
+          const dailyURL = `${API_BASE_URL}/daily-donations`;
+          console.log('正在獲取每日捐款數據，URL:', dailyURL);
+          
+          const dailyResponse = await fetch(dailyURL, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            },
+            mode: 'cors',
+            credentials: 'omit' // 不發送認證信息，減少跨域問題
+          });
+          console.log('每日捐款數據回應狀態:', dailyResponse.status);
+          
+          if (dailyResponse.ok) {
+            const dailyData = await dailyResponse.json();
+            console.log('成功獲取每日捐款數據:', dailyData);
+            
+            if (dailyData.dailyData && dailyData.dailyData.length > 0) {
+              setDailyData(dailyData.dailyData);
+              setTotalDonation(dailyData.dailyData[dailyData.dailyData.length - 1].total);
+            } else {
+              setError('每日捐款數據格式不正確');
+            }
+          } else {
+            setError('無法獲取每日捐款數據 (HTTP ' + dailyResponse.status + ')');
+          }
+        } else {
+          setError('無法獲取按讚數據 (HTTP ' + likesResponse.status + ')');
+        }
+      } catch (apiError) {
+        console.error('API請求失敗:', apiError);
+        setError('數據加載失敗: ' + apiError.message);
       }
-      const data = await response.json();
-      setLikes(data.like_count);
-      setError(null);
     } catch (err) {
-      console.error('獲取按讚數時出錯:', err);
+      console.error('整體數據加載出錯:', err);
       setError('無法連接到服務器');
     } finally {
       setLoading(false);
     }
   }
   
-  // 1 按讚 = 1 NT$
-  const donated = likes;
-  const percentage = Math.min((donated / target) * 100, 100);
+  // 自定義 Tooltip 內容
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white/90 p-3 rounded-lg shadow-lg text-primary">
+          <p className="font-bold">{label}</p>
+          <p>當日新增: NT$ {payload[0].payload.amount}</p>
+          <p>累計總額: NT$ {payload[0].payload.total}</p>
+        </div>
+      );
+    }
+  
+    return null;
+  };
   
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-primary text-white relative overflow-hidden">
@@ -70,42 +132,80 @@ export default function DonationDashboard() {
       
       <div className="z-10 w-full max-w-4xl px-4">
         <h1 className="text-4xl md:text-6xl font-bold tracking-wider mb-6 text-center">
-          保護妳，也保護地球
+          PSK x 台灣鯨豚協會：海洋守護計畫
         </h1>
         
         <div className="text-center mb-8">
           <p className="mb-2 text-lg">每 1 個 ❤️ = NT$ 1 捐給</p>
           <p className="mb-8 text-xl font-semibold">
-            中華鯨豚協會 Taiwan Cetacean Society
+            台灣鯨豚協會 Taiwan Cetacean Society
           </p>
         </div>
         
         <div className="w-full max-w-xl mx-auto">
-          {/* 進度條 */}
-          <div className="h-8 bg-white/20 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-secondary rounded-full"
-              initial={{ width: '0%' }}
-              animate={{ width: `${percentage}%` }}
-              transition={{ duration: 1 }}
-            />
+          {/* 總金額顯示 */}
+          <div className="bg-white/10 p-6 rounded-lg shadow-lg mb-8">
+            <div className="flex flex-col items-center">
+              <h2 className="text-lg opacity-80 mb-2">已累積總捐款金額</h2>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={totalDonation}
+                  className="text-4xl md:text-5xl font-bold text-secondary"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  NT$ {totalDonation.toLocaleString()}
+                </motion.p>
+              </AnimatePresence>
+              <p className="mt-2 text-sm opacity-70">今日已獲得 {likes} 個讚</p>
+            </div>
           </div>
           
-          {/* 金額顯示 */}
-          <div className="mt-4 flex justify-between items-center text-lg">
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={donated}
-                className="font-bold"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.5 }}
-              >
-                已累積: NT$ {donated.toLocaleString()}
-              </motion.p>
-            </AnimatePresence>
-            <p className="font-bold">目標: NT$ {target.toLocaleString()}</p>
+          {/* 折線圖 */}
+          <div className="bg-white/10 p-4 rounded-lg shadow-lg mb-8">
+            <h2 className="text-xl font-semibold mb-4 text-center">捐款趨勢圖</h2>
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <div className="w-12 h-12 border-4 border-secondary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={dailyData}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="rgba(255,255,255,0.6)"
+                      tick={{ fill: 'rgba(255,255,255,0.8)' }}
+                    />
+                    <YAxis 
+                      stroke="rgba(255,255,255,0.6)"
+                      tick={{ fill: 'rgba(255,255,255,0.8)' }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="total"
+                      name="累計捐款 (NT$)"
+                      stroke="#FFB57A"
+                      activeDot={{ r: 8 }}
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
           
           {/* 錯誤顯示 */}
@@ -116,19 +216,27 @@ export default function DonationDashboard() {
           )}
           
           {/* 資訊區塊 */}
-          <div className="mt-16 p-6 bg-white/10 rounded-lg">
-            <h2 className="text-2xl font-bold mb-4">關於中華鯨豚協會</h2>
+          <div className="mt-8 p-6 bg-white/10 rounded-lg">
+            <h2 className="text-2xl font-bold mb-4">關於台灣鯨豚協會</h2>
             <p className="mb-4">
-              台灣海域擁有豐富的鯨豚資源，中華鯨豚協會致力於台灣沿海的鯨豚生態系研究、鯨豚保育與海洋環境教育活動，推動鯨豚觀光與保育之平衡，提昇整體海洋生態系永續經營之理念。
+              台灣海域擁有豐富的鯨豚資源，台灣鯨豚協會致力於台灣沿海的鯨豚生態系研究、鯨豚保育與海洋環境教育活動，推動鯨豚觀光與保育之平衡，提昇整體海洋生態系永續經營之理念。
+            </p>
+            <p className="mb-4">
+              您的每一個按讚都將轉化為實質捐款，幫助協會持續推動海洋保育工作，讓我們一起為保護海洋生態盡一份心力！
             </p>
             <p>
-              您的每一個按讚都將轉化為實質捐款，幫助協會持續推動海洋保育工作，讓我們一起為保護海洋生態盡一份心力！
+              除了按讚捐款，您也可以參與我們的抽獎活動！只需追蹤 PSK 官方 Instagram 帳號、按讚貼文，並在貼文下留言加上 #P、#S 或 #K 標籤，即可有機會獲得多項精美獎品！
             </p>
           </div>
           
           {/* 底部資訊 */}
           <div className="mt-8 text-center text-sm text-white/70">
-            <p>© 2023 Instagram Giveway Campaign</p>
+            <div className="mb-4">
+              <Link href="/winners" className="text-white hover:text-secondary transition-colors text-base font-semibold bg-white/20 px-4 py-2 rounded-full">
+                查看活動規則與抽獎結果
+              </Link>
+            </div>
+            <p>© 2024 PSK x Taiwan Cetacean Society</p>
             <p>數據更新頻率: 每 30 秒</p>
           </div>
         </div>

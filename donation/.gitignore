@@ -1,0 +1,33 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# 環境變數
+.env
+.env.local
+.env*.local
+
+# 構建輸出
+/.next/
+/out/
+/build/
+
+# 資料庫
+*.db
+
+# 日誌
+logs/
+*.log
+
+# 編輯器目錄和文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 作業系統檔案
+.DS_Store
+Thumbs.db

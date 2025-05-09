@@ -3,19 +3,13 @@ services:
   - type: web
     name: ig-hashtag-backend
     env: node
-    repo: https://github.com/qazasd2518995/donation.git
     buildCommand: cd backend && npm install
-    startCommand: cd backend && node app.js
+    startCommand: cd backend && npm start
     envVars:
       - key: IG_TOKEN
         sync: false
-        value: "EAAZABZBFyTPjUBO81GfrzZBLej4EhHFZAL2a996JziCFuybnEehqSKMJnee7aRcBJE0j2saqWZCQb22ydzx6ysul8dyaJ0sh6sTV0SC10PhDHh7FVqNyMkjfYAaDyOncZAPsiqX7aqhacRvKZAuJb4w5YjIvwgvy7wdSqbouJtecOkSdZBCKPuywEx51cI93qPvKkrZBdJOZBZA"
-      - key: IG_USER_ID
-        sync: false
-        value: "17841474086492936"
       - key: IG_POST_ID
         sync: false
-        value: "18079076146744868"
       - key: PORT
         value: 10000
 
@@ -23,7 +17,6 @@ services:
   - type: web
     name: donation-dashboard-frontend
     env: node
-    repo: https://github.com/qazasd2518995/donation.git
     buildCommand: cd frontend && npm install && npm run build
     startCommand: cd frontend && npm start
     envVars:

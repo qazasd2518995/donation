@@ -1,18 +1,22 @@
 {
-  "name": "ig-giveaway-backend",
+  "name": "ig-hashtag-backend",
   "version": "1.0.0",
-  "description": "Instagram hashtag giveaway backend service",
+  "description": "Instagram hashtag giveaway system backend",
   "main": "app.js",
   "type": "module",
   "scripts": {
     "start": "node app.js",
-    "draw": "node scripts/pickWinners.js"
+    "dev": "nodemon app.js",
+    "pick-winners": "node scripts/pickWinners.js"
   },
   "dependencies": {
-    "better-sqlite3": "^8.5.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "puppeteer": "^24.8.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
   }
-} 
+}
