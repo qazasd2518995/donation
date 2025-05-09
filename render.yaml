@@ -16,6 +16,8 @@ services:
         value: "18079076146744868"
       - key: PORT
         value: 10000
+      - key: MONGODB_URI
+        value: "mongodb+srv://username:password@cluster0.mongodb.net/donation-db?retryWrites=true&w=majority"
 
   # 前端服務
   - type: web
