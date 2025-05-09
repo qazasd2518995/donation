@@ -175,12 +175,17 @@ app.get('/api/daily-donations', async (req, res) => {
       let amount = 0;
       
       if (i === 0) {
-        // 今天的數值是剩餘的所有按讚數
-        amount = remaining;
+        // 今天的數值是剩餘的所有按讚數，確保至少有1個
+        amount = Math.max(1, remaining);
       } else {
-        // 數值呈現成長趨勢
+        // 數值呈現成長趨勢，但確保最後一天(今天)有按讚數
         const growth = 1 + ((13 - i) / 13); // 成長係數，從1到2
-        amount = Math.min(Math.floor(dailyAverage * growth), remaining);
+        // 如果是最後兩天，保留一些按讚數給今天
+        if (i <= 1 && remaining > 1) {
+          amount = Math.min(Math.floor(dailyAverage * growth * 0.5), remaining - 1);
+        } else {
+          amount = Math.min(Math.floor(dailyAverage * growth), remaining - 1);
+        }
         remaining -= amount;
       }
       
@@ -250,12 +255,17 @@ app.get('/daily-donations', async (req, res) => {
       let amount = 0;
       
       if (i === 0) {
-        // 今天的數值是剩餘的所有按讚數
-        amount = remaining;
+        // 今天的數值是剩餘的所有按讚數，確保至少有1個
+        amount = Math.max(1, remaining);
       } else {
-        // 數值呈現成長趨勢
+        // 數值呈現成長趨勢，但確保最後一天(今天)有按讚數
         const growth = 1 + ((13 - i) / 13); // 成長係數，從1到2
-        amount = Math.min(Math.floor(dailyAverage * growth), remaining);
+        // 如果是最後兩天，保留一些按讚數給今天
+        if (i <= 1 && remaining > 1) {
+          amount = Math.min(Math.floor(dailyAverage * growth * 0.5), remaining - 1);
+        } else {
+          amount = Math.min(Math.floor(dailyAverage * growth), remaining - 1);
+        }
         remaining -= amount;
       }
       
