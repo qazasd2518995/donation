@@ -11,8 +11,13 @@ export default function DonationDashboard() {
   const [totalDonation, setTotalDonation] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [statisticDate, setStatisticDate] = useState("");
   
   useEffect(() => {
+    // 設置統計日期
+    const now = new Date();
+    setStatisticDate(`${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`);
+    
     loadData();
     
     // 設定定時更新 (每 30 秒)
@@ -274,7 +279,7 @@ export default function DonationDashboard() {
                   NT$ {totalDonation.toLocaleString()}
                 </motion.p>
               </AnimatePresence>
-              <p className="mt-2 text-sm opacity-70">今日已獲得 {likes} 個讚</p>
+              <p className="mt-2 text-sm opacity-70">統計時間：{statisticDate}</p>
             </div>
           </div>
           
