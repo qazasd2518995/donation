@@ -16,6 +16,9 @@ const IG_USER_ID = process.env.IG_USER_ID || "17841474086492936"; // 正確的In
 const IG_POST_ID = process.env.IG_POST_ID || "18079076146744868"; // 正確的Instagram貼文ID
 const PORT = process.env.PORT || 10000; // 支援Render環境變數
 
+// 全局變量存儲抽獎結果
+let currentWinners = [];
+
 // 同步 Instagram 評論
 async function syncComments() {
   console.log('開始同步 Instagram 評論...');
@@ -214,10 +217,17 @@ app.get('/api/comments', async (req, res) => {
   }
 });
 
-// 獲取抽獎結果的API端點 (基於即時獲取的評論)
+// 獲取抽獎結果的API端點
 app.get('/api/winners', async (req, res) => {
   try {
     console.log('處理 /api/winners 請求');
+    
+    // 如果已經有抽獎結果，直接返回
+    if (currentWinners.length > 0) {
+      console.log(`返回現有抽獎結果: ${currentWinners.length} 名得獎者`);
+      return res.json({ success: true, winners: currentWinners });
+    }
+    
     const count = parseInt(req.query.count) || 20;
     const HASHTAG = /\s*#\s*[psk]\b/i;
     
@@ -240,6 +250,9 @@ app.get('/api/winners', async (req, res) => {
       winners.push(tempComments.splice(idx, 1)[0]);
     }
     
+    // 保存抽獎結果
+    currentWinners = winners;
+    
     console.log(`選出 ${winners.length} 名得獎者`);
     return res.json({ success: true, winners });
   } catch (error) {
@@ -256,8 +269,8 @@ app.post('/api/winners/clear', (req, res) => {
   try {
     console.log('處理 /api/winners/clear 請求 - 清空抽獎結果');
     
-    // 由於抽獎結果不是持久化存儲的，而是每次請求時重新計算的，
-    // 所以這個端點主要提供給前端一個明確的接口，確認可以重新抽獎
+    // 清空抽獎結果
+    currentWinners = [];
     
     console.log('清空抽獎結果成功');
     return res.json({ 
@@ -311,6 +324,9 @@ app.post('/api/winners-custom', async (req, res) => {
       const idx = Math.floor(Math.random() * eligibleComments.length);
       winners.push(eligibleComments.splice(idx, 1)[0]);
     }
+    
+    // 保存抽獎結果
+    currentWinners = winners;
     
     console.log(`成功選出 ${winners.length} 名得獎者`);
     return res.json({ success: true, winners });
