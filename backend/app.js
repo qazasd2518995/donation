@@ -228,35 +228,11 @@ app.get('/api/winners', async (req, res) => {
       return res.json({ success: true, winners: currentWinners });
     }
     
-    const count = parseInt(req.query.count) || 20;
-    const HASHTAG = /\s*#\s*[psk]\b/i;
-    
-    const allComments = await syncComments();
-    
-    const uniqueUsers = new Map();
-    allComments.forEach(comment => {
-      if (HASHTAG.test(comment.text) && !uniqueUsers.has(comment.user)) {
-        uniqueUsers.set(comment.user, comment);
-      }
-    });
-
-    const validComments = Array.from(uniqueUsers.values());
-    
-    const winners = [];
-    const tempComments = [...validComments];
-    
-    while (winners.length < count && tempComments.length) {
-      const idx = Math.floor(Math.random() * tempComments.length);
-      winners.push(tempComments.splice(idx, 1)[0]);
-    }
-    
-    // 保存抽獎結果
-    currentWinners = winners;
-    
-    console.log(`選出 ${winners.length} 名得獎者`);
-    return res.json({ success: true, winners });
+    // 如果沒有抽獎結果，返回空陣列
+    console.log('沒有現有抽獎結果，返回空陣列');
+    return res.json({ success: true, winners: [] });
   } catch (error) {
-    console.error('選擇得獎者時發生錯誤:', error);
+    console.error('獲取評論時發生錯誤:', error);
     return res.status(500).json({ 
       error: 'Internal Server Error', 
       message: error.message || '伺服器內部錯誤'
@@ -308,21 +284,43 @@ app.post('/api/winners-custom', async (req, res) => {
     // 只保留已確認追蹤的用戶的評論
     const validComments = allComments.filter(comment => verifiedUserIds.includes(comment.id));
     
-    // 確保每個用戶只被選中一次（使用用戶名作為鍵）
-    const uniqueUsers = new Map();
-    validComments.forEach(comment => {
-      if (!uniqueUsers.has(comment.user)) {
-        uniqueUsers.set(comment.user, comment);
-      }
-    });
-    
-    // 從唯一用戶集合中隨機選擇獲獎者
+    // 從所有符合條件的評論中隨機選擇獲獎者
     const winners = [];
-    const eligibleComments = Array.from(uniqueUsers.values());
+    const selectedUsers = new Set(); // 用於追蹤已經中獎的用戶名
     
-    while (winners.length < count && eligibleComments.length) {
-      const idx = Math.floor(Math.random() * eligibleComments.length);
-      winners.push(eligibleComments.splice(idx, 1)[0]);
+    // 首先複製所有符合條件的評論，每條評論都可能被抽中
+    const eligibleComments = [...validComments];
+    
+    // 混洗評論以增加隨機性
+    for (let i = eligibleComments.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [eligibleComments[i], eligibleComments[j]] = [eligibleComments[j], eligibleComments[i]];
+    }
+    
+    console.log(`符合條件的評論數: ${eligibleComments.length}`);
+    
+    // 嘗試選擇指定數量的獲獎者
+    while (winners.length < count && eligibleComments.length > 0) {
+      // 每次從剩餘評論中隨機選取一條
+      const randomIndex = Math.floor(Math.random() * eligibleComments.length);
+      const selectedComment = eligibleComments.splice(randomIndex, 1)[0];
+      
+      // 檢查該用戶是否已經中獎
+      if (!selectedUsers.has(selectedComment.user)) {
+        // 如果該用戶尚未中獎，則添加到獲獎列表
+        winners.push(selectedComment);
+        selectedUsers.add(selectedComment.user);
+        console.log(`選中用戶: ${selectedComment.user}`);
+      } else {
+        console.log(`跳過已中獎用戶: ${selectedComment.user}`);
+        // 用戶已中獎，不重複選擇
+      }
+      
+      // 如果已經沒有更多評論可選，但仍未達到指定數量，提前結束
+      if (eligibleComments.length === 0) {
+        console.log('已經沒有更多符合條件的評論可選');
+        break;
+      }
     }
     
     // 保存抽獎結果
@@ -346,24 +344,24 @@ app.get('/api/prizes', (req, res) => {
     
     // 獎項清單
     const prizes = [
-      { rank: 1,  name: "PSK海洋探索大獎", detail: "灣臥海景頂級房＋輕盈美肌組", value: 10797 },
-      { rank: 2,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋輕盈美肌組", value: 1789 },
-      { rank: 3,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋美肌清潔明星組", value: 1740 },
-      { rank: 4,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋輕盈美肌組", value: 1789 },
-      { rank: 5,  name: "鯨豚之友獎", detail: "ONE+ 虎鯨鑰匙圈＋美肌清潔明星組", value: 669 },
-      { rank: 6,  name: "鯨豚之友獎", detail: "ONE+ 鯨魚鑰匙圈＋毛孔淨化組", value: 634 },
-      { rank: 7,  name: "PSK美肌獎", detail: "ONE+ 虎鯨鑰匙圈＋毛孔淨化組", value: 669 },
-      { rank: 8,  name: "PSK美肌獎", detail: "ONE+ 鯨魚鑰匙圈＋溫和洗卸組", value: 634 },
-      { rank: 9,  name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
-      { rank: 10, name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
-      { rank: 11, name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
-      { rank: 12, name: "PSK美肌獎", detail: "美肌清潔明星組", value: 580 },
-      { rank: 13, name: "PSK美肌獎", detail: "毛孔淨化組", value: 550 },
-      { rank: 14, name: "PSK美肌獎", detail: "毛孔淨化組", value: 550 },
-      { rank: 15, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
-      { rank: 16, name: "PSK美肌獎", detail: "美肌清潔明星組", value: 580 },
-      { rank: 17, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
-      { rank: 18, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
+      { rank: 1,  name: "大獎", detail: "墾丁旅宿灣臥海景頂級房住宿券一晚＋PSK海洋友善保養禮盒＋台灣鯨豚協會紀念品組合", value: 10797 },
+      { rank: 2,  name: "二獎", detail: "環保海龜飲料杯套＋PSK海洋系列保養組＋台灣鯨豚協會明信片組", value: 2200 },
+      { rank: 3,  name: "二獎", detail: "環保海龜飲料杯套＋PSK海洋系列保養組＋台灣鯨豚協會明信片組", value: 2200 },
+      { rank: 4,  name: "二獎", detail: "環保海龜飲料杯套＋PSK海洋系列保養組＋台灣鯨豚協會明信片組", value: 2200 },
+      { rank: 5,  name: "三獎", detail: "ONE+ 虎鯨鑰匙圈＋PSK海洋深層保濕精華＋台灣鯨豚生態介紹手冊", value: 1580 },
+      { rank: 6,  name: "三獎", detail: "ONE+ 鯨魚鑰匙圈＋PSK海洋深層保濕精華＋台灣鯨豚生態介紹手冊", value: 1580 },
+      { rank: 7,  name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 8,  name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 9,  name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 10, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 11, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 12, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 13, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 14, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 15, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 16, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 17, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+      { rank: 18, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
     ];
     
     return res.json({ success: true, prizes });

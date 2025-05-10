@@ -6,24 +6,24 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10
 
 // 獎項清單
 const prizes = [
-  { rank: 1,  name: "PSK海洋探索大獎", detail: "灣臥海景頂級房＋輕盈美肌組", value: 10797 },
-  { rank: 2,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋輕盈美肌組", value: 1789 },
-  { rank: 3,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋美肌清潔明星組", value: 1740 },
-  { rank: 4,  name: "海洋守護獎", detail: "環保海龜飲料杯套＋輕盈美肌組", value: 1789 },
-  { rank: 5,  name: "鯨豚之友獎", detail: "ONE+ 虎鯨鑰匙圈＋美肌清潔明星組", value: 669 },
-  { rank: 6,  name: "鯨豚之友獎", detail: "ONE+ 鯨魚鑰匙圈＋毛孔淨化組", value: 634 },
-  { rank: 7,  name: "PSK美肌獎", detail: "ONE+ 虎鯨鑰匙圈＋毛孔淨化組", value: 669 },
-  { rank: 8,  name: "PSK美肌獎", detail: "ONE+ 鯨魚鑰匙圈＋溫和洗卸組", value: 634 },
-  { rank: 9,  name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
-  { rank: 10, name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
-  { rank: 11, name: "PSK美肌獎", detail: "輕盈美肌組", value: 600 },
-  { rank: 12, name: "PSK美肌獎", detail: "美肌清潔明星組", value: 580 },
-  { rank: 13, name: "PSK美肌獎", detail: "毛孔淨化組", value: 550 },
-  { rank: 14, name: "PSK美肌獎", detail: "毛孔淨化組", value: 550 },
-  { rank: 15, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
-  { rank: 16, name: "PSK美肌獎", detail: "美肌清潔明星組", value: 580 },
-  { rank: 17, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
-  { rank: 18, name: "PSK美肌獎", detail: "溫和洗卸組", value: 520 },
+  { rank: 1,  name: "大獎", detail: "墾丁旅宿灣臥海景頂級房住宿券一晚＋PSK海洋友善保養禮盒＋台灣鯨豚協會紀念品組合", value: 10797 },
+  { rank: 2,  name: "二獎", detail: "環保海龜飲料杯套＋PSK海洋系列保養組＋台灣鯨豚協會明信片組", value: 2200 },
+  { rank: 3,  name: "二獎", detail: "環保海龜飲料杯套＋PSK海洋系列保養組＋台灣鯨豚協會明信片組", value: 2200 },
+  { rank: 4,  name: "二獎", detail: "環保海龜飲料杯套＋PSK海洋系列保養組＋台灣鯨豚協會明信片組", value: 2200 },
+  { rank: 5,  name: "三獎", detail: "ONE+ 虎鯨鑰匙圈＋PSK海洋深層保濕精華＋台灣鯨豚生態介紹手冊", value: 1580 },
+  { rank: 6,  name: "三獎", detail: "ONE+ 鯨魚鑰匙圈＋PSK海洋深層保濕精華＋台灣鯨豚生態介紹手冊", value: 1580 },
+  { rank: 7,  name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 8,  name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 9,  name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 10, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 11, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 12, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 13, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 14, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 15, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 16, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 17, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
+  { rank: 18, name: "四獎", detail: "PSK超值漂漂禮包＋海洋保育電子資源包", value: 669 },
 ];
 
 export default function WinnerPage() {
@@ -39,6 +39,7 @@ export default function WinnerPage() {
   const [activeTab, setActiveTab] = useState('winners'); // 'winners' 或 'verify'
   const [filterHashtag, setFilterHashtag] = useState('all'); // 'all', 'P', 'S', 'K'
   const [prizeList, setPrizeList] = useState([]);
+  const [selectAll, setSelectAll] = useState(false); // 添加全選狀態
   
   // 簡單密碼驗證函數
   const handleLogin = () => {
@@ -98,14 +99,23 @@ export default function WinnerPage() {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
-        cache: 'no-cache' // 防止緩存問題
+        cache: 'no-cache', // 防止緩存問題
+        // 添加時間戳參數以避免緩存
+        signal: AbortSignal.timeout(10000) // 添加10秒超時
       });
       if (!response.ok) {
         throw new Error(`HTTP錯誤! 狀態碼: ${response.status}`);
       }
       const data = await response.json();
       console.log('抽獎結果:', data);
-      setWinners(data.winners || []);
+      
+      // 如果有抽獎結果，顯示獲獎者
+      if (data.winners && data.winners.length > 0) {
+        setWinners(data.winners);
+      } else {
+        // 如果沒有抽獎結果，只顯示符合條件的評論
+        setWinners([]);
+      }
       setError(null);
     } catch (err) {
       console.error('獲取抽獎結果時出錯:', err);
@@ -262,6 +272,29 @@ export default function WinnerPage() {
     }
   };
   
+  // 全選或取消全選所有用戶
+  const toggleSelectAll = () => {
+    const newSelectAll = !selectAll;
+    setSelectAll(newSelectAll);
+    
+    // 創建一個新的狀態對象
+    const newFollowingUsers = {};
+    
+    // 根據全選狀態設置所有過濾後的評論
+    filteredComments.forEach(comment => {
+      newFollowingUsers[comment.id] = newSelectAll;
+    });
+    
+    // 合併現有的狀態（保留不在過濾結果中的用戶狀態）
+    const mergedFollowingUsers = {
+      ...followingUsers,
+      ...newFollowingUsers
+    };
+    
+    setFollowingUsers(mergedFollowingUsers);
+    localStorage.setItem('followingUsers', JSON.stringify(mergedFollowingUsers));
+  };
+  
   useEffect(() => {
     fetchWinners();
     fetchComments();
@@ -367,6 +400,26 @@ export default function WinnerPage() {
                       >
                         清空抽獎結果
                       </button>
+                      
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`${API_BASE_URL}/api/winners?count=${count}&_=${Date.now()}`, {
+                              headers: { 'Accept': 'application/json' },
+                              cache: 'no-cache'
+                            });
+                            const data = await response.json();
+                            console.log('API 回應:', data);
+                            alert('檢查控制台以查看 API 回應');
+                          } catch (err) {
+                            console.error('API 測試出錯:', err);
+                            alert('API 測試出錯:' + err.message);
+                          }
+                        }}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-opacity-80 transition-colors"
+                      >
+                        測試 API
+                      </button>
                     </div>
                   ) : (
                     !showLoginForm ? (
@@ -438,7 +491,7 @@ export default function WinnerPage() {
                               <div className="font-bold truncate">{winner.user}</div>
                               {prize && (
                                 <div className="bg-secondary/80 text-xs px-2 py-1 rounded-full text-white">
-                                  第 {prize.rank} 名
+                                  {prize.name}
                                 </div>
                               )}
                             </div>
@@ -481,6 +534,13 @@ export default function WinnerPage() {
                       <option value="S">#S - 聲浪共鳴傳唱</option>
                       <option value="K">#K - 刻不容緩行動</option>
                     </select>
+                    
+                    <button 
+                      onClick={toggleSelectAll}
+                      className="px-3 py-1 bg-secondary rounded hover:bg-opacity-80 transition-colors"
+                    >
+                      {selectAll ? '取消全選' : '全選'}
+                    </button>
                     
                     <button 
                       onClick={logDebugInfo}
