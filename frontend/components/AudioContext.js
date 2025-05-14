@@ -23,21 +23,58 @@ export function AudioProvider({ children }) {
     return savedVolume !== null ? parseInt(savedVolume, 10) : 50;
   });
 
-  // 監聽用戶交互事件，標記用戶已交互
+  // 檢測設備類型
+  const [isIOS, setIsIOS] = useState(false);
+
+  // 在客戶端檢測設備類型
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isIOSDevice);
+    
+    // 如果是iOS設備，初始化靜音狀態
+    if (isIOSDevice) {
+      console.log('檢測到iOS設備，需要直接用戶交互才能播放音頻');
+    }
+  }, []);
+
+  // 加強用戶交互檢測，特別針對移動設備
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
     const markUserInteracted = () => {
+      console.log('檢測到用戶交互，嘗試啟用音頻播放');
       setUserInteracted(true);
       
       // 如果存儲的状態是播放且當前未播放，嘗試播放
       const shouldPlay = localStorage.getItem('audioPlaying') === 'true' || !isMuted;
       if (shouldPlay && !isPlaying && audioRef.current) {
-        setIsPlaying(true);
+        // 特別處理iOS設備
+        if (isIOS) {
+          // iOS設備需要在用戶交互事件處理函數中直接調用play()
+          const unlockAudio = () => {
+            audioRef.current.play().then(() => {
+              // 成功開始播放後，可以暫停（如果用戶設置為靜音）
+              if (isMuted) {
+                audioRef.current.pause();
+              } else {
+                setIsPlaying(true);
+              }
+            }).catch(error => {
+              console.error('iOS設備解鎖音頻失敗:', error);
+            });
+          };
+          unlockAudio();
+        } else {
+          setIsPlaying(true);
+        }
       }
     };
     
-    const events = ['click', 'touchstart', 'keydown'];
+    // 增加更多可能的用戶交互事件
+    const events = ['click', 'touchstart', 'touchend', 'pointerdown', 'keydown'];
     events.forEach(event => {
       window.addEventListener(event, markUserInteracted, { once: true });
     });
@@ -47,7 +84,7 @@ export function AudioProvider({ children }) {
         window.removeEventListener(event, markUserInteracted);
       });
     };
-  }, []);
+  }, [isIOS, isMuted, isPlaying]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -57,6 +94,14 @@ export function AudioProvider({ children }) {
       audio = new Audio();
       audio.id = 'global-audio-player';
       audio.src = audioSrc.current;
+      audio.preload = 'auto'; // 確保預加載
+      
+      if (isIOS) {
+        // iOS優化: 設置為靜音，等用戶交互後再取消靜音
+        audio.muted = true;
+        audio.playsInline = true; // iOS需要
+      }
+      
       document.body.appendChild(audio);
     }
     audioRef.current = audio;
@@ -96,7 +141,7 @@ export function AudioProvider({ children }) {
       localAudioRef.removeEventListener('play', handleAudioPlayEvent);
       localAudioRef.removeEventListener('pause', handleAudioPauseEvent);
     };
-  }, [userInteracted]); 
+  }, [userInteracted, isIOS]); 
 
   // 主動控制播放和暫停的 useEffect
   useEffect(() => {
@@ -104,11 +149,36 @@ export function AudioProvider({ children }) {
       if (isPlaying) {
         // 只有在用戶交互後才嘗試播放
         if (userInteracted) {
-          audioRef.current.play().catch(error => {
-            console.error('AudioContext: useEffect play failed', error);
-            // 如果播放失敗，將 isPlaying 同步回 false
-            setIsPlaying(false);
-          });
+          // 在iOS上，我們需要先解鎖音頻
+          const playPromise = audioRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.error('AudioContext: useEffect play failed', error);
+              // 如果播放失敗，將 isPlaying 同步回 false
+              setIsPlaying(false);
+              
+              // 特別處理iOS設備
+              if (isIOS && error.name === 'NotAllowedError') {
+                console.log('iOS需要用戶交互才能播放音頻，請點擊頁面任意位置');
+                
+                // 嘗試再次檢測和啟用音頻播放
+                const unlockAudioAgain = () => {
+                  audioRef.current.play().then(() => {
+                    setIsPlaying(true);
+                  }).catch(e => {
+                    console.error('再次嘗試播放失敗:', e);
+                  });
+                  
+                  document.removeEventListener('touchstart', unlockAudioAgain);
+                  document.removeEventListener('click', unlockAudioAgain);
+                };
+                
+                document.addEventListener('touchstart', unlockAudioAgain, { once: true });
+                document.addEventListener('click', unlockAudioAgain, { once: true });
+              }
+            });
+          }
         } else {
           // 用戶尚未交互，待用戶交互後會自動嘗試播放
           console.log('等待用戶交互後再播放音頻');
@@ -117,7 +187,7 @@ export function AudioProvider({ children }) {
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, audioLoaded, userInteracted]);
+  }, [isPlaying, audioLoaded, userInteracted, isIOS]);
 
   // 保存 isPlaying 狀態到 localStorage
   useEffect(() => {
@@ -154,7 +224,21 @@ export function AudioProvider({ children }) {
     if (!audioLoaded && audioRef.current && !isPlaying) {
       audioRef.current.load(); // 確保開始載入
     }
-    setIsPlaying(prevIsPlaying => !prevIsPlaying);
+    
+    // 特別處理iOS設備
+    if (isIOS && !isPlaying) {
+      // 直接嘗試播放
+      const unlockAndPlay = () => {
+        audioRef.current.play().then(() => {
+          setIsPlaying(true);
+        }).catch(e => {
+          console.error('iOS播放失敗:', e);
+        });
+      };
+      unlockAndPlay();
+    } else {
+      setIsPlaying(prevIsPlaying => !prevIsPlaying);
+    }
   };
 
   const toggleMute = () => {
@@ -165,7 +249,20 @@ export function AudioProvider({ children }) {
     setIsMuted(newMutedState);
     // 如果取消靜音並且音樂是應該播放的（來自 localStorage 或用戶之前的操作），則確保 isPlaying 為 true
     if (!newMutedState && (localStorage.getItem('audioPlaying') === 'true' || !isPlaying)) {
-      setIsPlaying(true);
+      // 特別處理iOS設備
+      if (isIOS) {
+        const unmute = () => {
+          audioRef.current.muted = false;
+          audioRef.current.play().then(() => {
+            setIsPlaying(true);
+          }).catch(e => {
+            console.error('取消靜音並播放失敗:', e);
+          });
+        };
+        unmute();
+      } else {
+        setIsPlaying(true);
+      }
     }
   };
 
@@ -179,7 +276,18 @@ export function AudioProvider({ children }) {
       setIsMuted(false);
       // 如果音量調大且存儲的狀態是播放，則確保 isPlaying 為 true
       if (localStorage.getItem('audioPlaying') === 'true' || !isPlaying) {
-        setIsPlaying(true);
+        if (isIOS) {
+          const playAfterVolumeChange = () => {
+            audioRef.current.play().then(() => {
+              setIsPlaying(true);
+            }).catch(e => {
+              console.error('調整音量後播放失敗:', e);
+            });
+          };
+          playAfterVolumeChange();
+        } else {
+          setIsPlaying(true);
+        }
       }
     }
     if (volumeValue === 0 && !isMuted) {
@@ -197,7 +305,8 @@ export function AudioProvider({ children }) {
         toggleMute,
         handleVolumeChange,
         audioLoaded,
-        userInteracted
+        userInteracted,
+        isIOS
       }}
     >
       {children}
