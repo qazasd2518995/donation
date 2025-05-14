@@ -244,26 +244,41 @@ export default function DonationDashboard() {
     return bubbles;
   };
 
-  const generateFishes = (commenterList) => {
+  const generateFishes = () => {
     const fishes = [];
+    
+    // 增加更多魚的形狀種類
     const fishShapes = [
+      // 基本魚形
       "M0,0 C3,2 5,2 8,0 C5,-2 3,-2 0,0 Z",
       "M0,0 C2,3 6,3 8,0 C6,-3 2,-3 0,0 M8,0 L10,3 M8,0 L10,-3",
       "M0,0 Q4,4 8,0 Q4,-4 0,0 M8,0 L11,2 L10,0 L11,-2 Z",
       "M0,0 Q2,2 5,2 Q8,2 8,0 Q8,-2 5,-2 Q2,-2 0,0 M8,0 L10,1 L11,0 L10,-1 Z",
       "M0,0 Q3,3 6,3 T10,0 Q7,-3 0,0 M10,0 L12,2 M10,0 L12,-2",
+      // 更多精緻的魚形
+      "M0,0 Q4,4 7,1 T12,0 Q9,-3 5,-1 T0,0 M12,0 L14,2 M12,0 L14,-2",
+      "M0,0 C2,4 5,5 8,4 C11,3 12,0 12,0 C12,0 11,-3 8,-4 C5,-5 2,-4 0,0 M12,0 L15,1 L15,-1 Z",
+      "M0,0 C1,3 3,4 6,4 S12,1 12,0 S9,-4 6,-4 S1,-3 0,0 M12,0 L14,2 L14,-2 Z",
+      "M0,0 Q2,3 5,3 Q8,3 10,0 Q8,-3 5,-3 Q2,-3 0,0 M10,0 Q11,1 13,0 Q11,-1 10,0",
+      "M0,0 Q3,4 7,2 Q10,0 7,-2 Q3,-4 0,0 M7,2 L9,3 M7,-2 L9,-3"
     ];
+    
+    // 增加更多魚的顏色組合
     const fishColors = [
+      // 基本顏色
       "#FFB6C1", "#ADD8E6", "#90EE90", "#FFA07A", "#FFFACD",
       "#E6E6FA", "#F0E68C", "#87CEFA", "#DDA0DD", "#B0E0E6",
+      // 增加更多海洋風格顏色
+      "#4682B4", "#00CED1", "#48D1CC", "#5F9EA0", "#6495ED",
+      "#7FFFD4", "#AFEEEE", "#00FFFF", "#00BFFF", "#1E90FF"
     ];
     
-    // 限制最多30條魚，如果實際留言數不足，則顯示實際數量
-    const maxFishes = Math.min(commenterList.length, 30);
+    // 使用讚數來決定魚的數量，最多顯示30條魚
+    const fishCount = Math.min(likes, 30);
     
-    for (let i = 0; i < maxFishes; i++) {
-      const commenter = commenterList[i];
-      const size = Math.random() * 25 + 20; 
+    for (let i = 0; i < fishCount; i++) {
+      // 增加魚的大小差異，範圍從很小到較大
+      const size = Math.random() * 35 + 15; // 15-50 範圍，更大的差異
       const x = Math.random() * 80 + 5; 
       const y = Math.random() * 60 + 10; 
       const delay = Math.random() * 10;
@@ -273,23 +288,28 @@ export default function DonationDashboard() {
       const colorIndex = Math.floor(Math.random() * fishColors.length);
       const eyeColor = "#000";
       
-      // 確保顯示的用戶名不包含@前綴
-      const displayName = commenter.username.replace(/^@+/, '');
+      // 隨機決定是否有尾鰭動畫
+      const hasTailAnimation = Math.random() > 0.5;
+      
+      // 為每條魚添加獨特的顏色和花紋
+      const hasPattern = Math.random() > 0.6;
+      const patternColor = fishColors[Math.floor(Math.random() * fishColors.length)];
       
       fishes.push(
         <motion.div
-          key={`fish-${commenter.id || i}`}
+          key={`fish-${i}`}
           className="absolute group cursor-default"
           style={{
             width: `${size * 1.5}px`,
             height: `${size}px`,
             left: `${x}%`,
             top: `${y}%`,
-            zIndex: 20, 
+            zIndex: Math.floor(size), // 大魚在前面，小魚在後面
           }}
           animate={{
             x: [0, direction * (Math.random() * 30 + 20), 0],
             y: [0, (Math.random() * -20 - 5), (Math.random() * 10 + 5), (Math.random() * -10 - 5), 0],
+            rotate: hasTailAnimation ? [0, direction * 5, 0, direction * -5, 0] : 0,
           }}
           transition={{
             duration: duration,
@@ -305,39 +325,62 @@ export default function DonationDashboard() {
             preserveAspectRatio="xMidYMid meet"
             style={{ transform: `scaleX(${direction})`, position: 'relative', zIndex: 1 }}
           >
+            {/* 魚的主體 */}
             <path
               d={fishShapes[shapeIndex]}
               fill={fishColors[colorIndex]}
               stroke="#ffffff"
               strokeWidth="0.15"
+              filter="url(#shadow)"
             />
+            
+            {/* 魚的花紋 (隨機) */}
+            {hasPattern && (
+              <path
+                d={fishShapes[shapeIndex]}
+                fill="none"
+                stroke={patternColor}
+                strokeWidth="0.1"
+                strokeDasharray="0.2,0.2"
+                opacity="0.5"
+                transform="scale(0.85) translate(1,0.5)"
+              />
+            )}
+            
+            {/* 魚眼 */}
             <circle cx={direction > 0 ? 2.5 : 7.5} cy="0" r="0.7" fill={eyeColor} />
             <circle cx={direction > 0 ? 2.5 : 7.5} cy="0" r="0.25" fill="#ffffff" />
+            
+            {/* 濾鏡效果 */}
+            <defs>
+              <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="0" stdDeviation="0.3" floodColor="#ffffff" floodOpacity="0.5" />
+              </filter>
+            </defs>
           </svg>
-          <div 
-            className="absolute text-center w-full mt-0.5" 
-            style={{
-              fontSize: `${Math.max(8, size / 4)}px`,
-              color: 'white',
-              textShadow: '0px 0px 3px rgba(0,0,0,0.8), 0px 0px 5px rgba(0,100,255,0.9)',
-              transform: `translateY(${size / 2 + 2}px) scaleX(${direction})`,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: `${size * 1.5}px`,
-              zIndex: 2,
-              fontWeight: 'bold',
-              letterSpacing: '0.5px',
-              padding: '2px 6px',
-              borderRadius: '8px',
-              background: 'linear-gradient(to bottom, rgba(76,154,255,0.3), rgba(0,91,187,0.1))',
-              backdropFilter: 'blur(2px)',
-              border: '0.5px solid rgba(255,255,255,0.4)',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-            }}
-          >
-            {displayName}
-          </div>
+          
+          {/* 氣泡動畫 (隨機) */}
+          {Math.random() > 0.7 && (
+            <motion.div
+              className="absolute rounded-full bg-white/30"
+              style={{
+                width: `${size / 8}px`,
+                height: `${size / 8}px`,
+                left: direction > 0 ? '15%' : '85%',
+                top: '40%',
+              }}
+              animate={{
+                y: [-5, -15],
+                opacity: [0.7, 0],
+                scale: [1, 1.5]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                repeatDelay: Math.random() * 5 + 2
+              }}
+            />
+          )}
         </motion.div>
       );
     }
@@ -557,18 +600,15 @@ export default function DonationDashboard() {
                   </svg>
                 </motion.div>
                 
-                {/* 小魚群 - 使用 isClient 條件渲染 */}
-                {isClient && !loading && commenters.length > 0 && generateFishes(commenters)}
+                {/* 小魚群 - 基於讚數 */}
+                {isClient && !loading && generateFishes()}
                 
-                {/* 氣泡群 - 使用 isClient 條件渲染 */}
-                {isClient && generateBubbles(likes < 10 ? likes * 2 : Math.min(commenters.length * 2, 30))}
+                {/* 氣泡群 */}
+                {isClient && generateBubbles(likes < 10 ? likes * 2 : Math.min(likes, 30))}
                 
-                {/* 讚數/留言者數顯示 */}
+                {/* 讚數顯示 */}
                 <div className="absolute bottom-2 right-2 bg-white/20 px-3 py-1 rounded-full text-sm">
-                  {commenters.length > 0 ? 
-                    <span>{t('contributorsMessage', { count: commenters.length })}</span> : 
-                    <span>{t('moreFishMessage')}</span>
-                  }
+                  <span>{likes > 0 ? t('contributorsMessage', { count: likes }) : t('moreFishMessage')}</span>
                 </div>
               </div>
             )}
