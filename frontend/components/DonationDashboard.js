@@ -12,6 +12,7 @@ export default function DonationDashboard() {
   const { t } = useTranslation('home');
   const [likes, setLikes] = useState(0);
   const [prevLikes, setPrevLikes] = useState(0);
+  const [commenters, setCommenters] = useState([]);
   const [dailyData, setDailyData] = useState([]);
   const [totalDonation, setTotalDonation] = useState(0);
   const [prevTotalDonation, setPrevTotalDonation] = useState(0);
@@ -27,10 +28,10 @@ export default function DonationDashboard() {
     const now = new Date();
     setStatisticDate(`${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`);
     
-    loadData();
+    loadDashboardData();
     
     // 設定定時更新 (每 30 秒)
-    const intervalId = setInterval(() => loadData(), 30000);
+    const intervalId = setInterval(() => loadDashboardData(), 30000);
     
     // 清理函數
     return () => clearInterval(intervalId);
@@ -72,63 +73,63 @@ export default function DonationDashboard() {
     }
   }, [playSound]);
   
-  async function loadData(retryCount = 0) {
+  async function loadDashboardData(retryCount = 0) {
     try {
       setLoading(true);
       
-      // 加載按讚數據
-      const likesURL = `${API_BASE_URL}/api/likes`;
-      console.log('正在獲取按讚數據，URL:', likesURL);
-      
-      const likesResponse = await fetch(likesURL, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        cache: 'no-cache' // 防止緩存問題
-      });
-      
+      const [likesResponse, commentsApiResponse, dailyDonationsResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/likes`, { cache: 'no-cache' }),
+        fetch(`${API_BASE_URL}/api/comments`, { cache: 'no-cache' }),
+        fetch(`${API_BASE_URL}/api/daily-donations`, { cache: 'no-cache' })
+      ]);
+
       if (!likesResponse.ok) {
-        throw new Error(`HTTP error! status: ${likesResponse.status}`);
+        throw new Error(`HTTP error! Likes status: ${likesResponse.status}`);
       }
-      
       const likesData = await likesResponse.json();
       console.log('成功獲取按讚數據:', likesData);
-      
-      // 保存舊的按讚數量，以便檢測變化
       setPrevLikes(likes);
       setLikes(likesData.count);
-      
-      // 加載每日捐款數據
-      const dailyURL = `${API_BASE_URL}/api/daily-donations`;
-      console.log('正在獲取每日捐款數據，URL:', dailyURL);
-      
-      const dailyResponse = await fetch(dailyURL, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        cache: 'no-cache' // 防止緩存問題
-      });
-      
-      if (!dailyResponse.ok) {
-        throw new Error(`HTTP error! status: ${dailyResponse.status}`);
+
+      if (!commentsApiResponse.ok) {
+        throw new Error(`HTTP error! Comments status: ${commentsApiResponse.status}`);
       }
-      
-      const dailyData = await dailyResponse.json();
-      console.log('成功獲取每日捐款數據:', dailyData);
-      
-      if (dailyData.data && dailyData.data.length > 0) {
-        setDailyData(dailyData.data);
-        setPrevTotalDonation(totalDonation);
-        setTotalDonation(dailyData.data[dailyData.data.length - 1].amount);
+      const commentsData = await commentsApiResponse.json(); // commentsData 結構是 { data: [...] }
+      console.log('成功獲取留言數據:', commentsData);
+      if (commentsData.data && Array.isArray(commentsData.data)) {
+        const uniqueCommenters = [];
+        const seenUserIds = new Set();
+        commentsData.data.forEach(comment => {
+          if (comment.from && comment.from.id && comment.username) { // 確保數據完整
+            if (!seenUserIds.has(comment.from.id)) {
+              uniqueCommenters.push({
+                id: comment.from.id,      
+                username: comment.username 
+              });
+              seenUserIds.add(comment.from.id);
+            }
+          }
+        });
+        setCommenters(uniqueCommenters);
       } else {
-        setError('每日捐款數據格式不正確');
+        console.warn('留言數據格式不正確或為空，應為 { data: [...] }');
+        setCommenters([]);
       }
       
-      // 重置錯誤狀態
+      if (!dailyDonationsResponse.ok) {
+        throw new Error(`HTTP error! Daily Donations status: ${dailyDonationsResponse.status}`);
+      }
+      const dailyDataResult = await dailyDonationsResponse.json();
+      console.log('成功獲取每日捐款數據:', dailyDataResult);
+      if (dailyDataResult.data && dailyDataResult.data.length > 0) {
+        setDailyData(dailyDataResult.data);
+        setPrevTotalDonation(totalDonation);
+        setTotalDonation(dailyDataResult.data[dailyDataResult.data.length - 1].amount);
+      } else {
+        // setError('每日捐款數據格式不正確'); // 允許此數據為空或不影響核心功能
+        console.warn('每日捐款數據格式不正確或為空');
+      }
+      
       setError(null);
       
     } catch (error) {
@@ -137,7 +138,7 @@ export default function DonationDashboard() {
       // 如果重試次數小於3次，則重試
       if (retryCount < 3) {
         console.log(`重試中... (${retryCount + 1}/3)`);
-        setTimeout(() => loadData(retryCount + 1), 2000 * (retryCount + 1));
+        setTimeout(() => loadDashboardData(retryCount + 1), 2000 * (retryCount + 1));
       } else {
         setError(`${t('errorLoading')}: ${error.message}`);
       }
@@ -160,7 +161,7 @@ export default function DonationDashboard() {
       
       bubbles.push(
         <motion.div
-          key={i}
+          key={`bubble-${i}`}
           className="absolute rounded-full bg-secondary/60"
           style={{
             width: `${size}px`,
@@ -185,7 +186,7 @@ export default function DonationDashboard() {
   };
   
   // 產生多彩的小魚群
-  const generateFishes = (count) => {
+  const generateFishes = (commenterList) => {
     const fishes = [];
     // 小魚SVG路徑集合，不同形狀的小魚
     const fishShapes = [
@@ -210,14 +211,15 @@ export default function DonationDashboard() {
       "#B0E0E6", // 粉藍
     ];
     
-    const maxFishes = Math.min(count, 100); // 限制最大顯示數量
+    const maxFishes = Math.min(commenterList.length, 100); // 限制最大顯示數量
     
     for (let i = 0; i < maxFishes; i++) {
-      const size = Math.random() * 20 + 15; // 15-35px
-      const x = Math.random() * 85 + 5; // 5-90%
-      const y = Math.random() * 65 + 15; // 15-80%
-      const delay = Math.random() * 8;
-      const duration = Math.random() * 20 + 15; // 15-35s
+      const commenter = commenterList[i];
+      const size = Math.random() * 25 + 20; // 稍微增大魚的尺寸範圍 (20-45px)
+      const x = Math.random() * 80 + 5; // 調整 X 軸範圍以容納文字
+      const y = Math.random() * 60 + 10; // 調整 Y 軸範圍
+      const delay = Math.random() * 10;
+      const duration = Math.random() * 25 + 20; // 調整游動時間
       const direction = Math.random() > 0.5 ? 1 : -1; // 魚的朝向 (左或右)
       const shapeIndex = Math.floor(Math.random() * fishShapes.length);
       const colorIndex = Math.floor(Math.random() * fishColors.length);
@@ -225,18 +227,18 @@ export default function DonationDashboard() {
       
       fishes.push(
         <motion.div
-          key={`fish-${i}`}
-          className="absolute"
+          key={`fish-${commenter.id || i}`}
+          className="absolute group cursor-default" // 添加 group 和 cursor
           style={{
-            width: `${size}px`,
-            height: `${size / 2}px`,
+            width: `${size * 1.5}px`, // 容器稍大於魚本身，以容納文字
+            height: `${size}px`,
             left: `${x}%`,
             top: `${y}%`,
-            transform: `scaleX(${direction})`,
+            zIndex: 20, // 確保魚在氣泡之上
           }}
           animate={{
-            x: [0, direction * 30, 0],
-            y: [0, -10, 5, -5, 0],
+            x: [0, direction * (Math.random() * 30 + 20), 0], // 增加游動幅度
+            y: [0, (Math.random() * -20 - 5), (Math.random() * 10 + 5), (Math.random() * -10 - 5), 0],
           }}
           transition={{
             duration: duration,
@@ -245,28 +247,51 @@ export default function DonationDashboard() {
             ease: "easeInOut"
           }}
         >
-          <svg width="100%" height="100%" viewBox="0 0 12 6" preserveAspectRatio="xMidYMid meet">
+          <svg 
+            width={size} 
+            height={size / 1.8} // 調整SVG高度以匹配常見魚形
+            viewBox="0 0 12 6" 
+            preserveAspectRatio="xMidYMid meet"
+            style={{ transform: `scaleX(${direction})`, position: 'relative', zIndex: 1 }}
+          >
             {/* 魚身 */}
             <path
               d={fishShapes[shapeIndex]}
               fill={fishColors[colorIndex]}
               stroke="#ffffff"
-              strokeWidth="0.2"
+              strokeWidth="0.15"
             />
             {/* 魚眼 */}
             <circle
-              cx={direction > 0 ? 2 : 8}
+              cx={direction > 0 ? 2.5 : 7.5}
               cy="0"
-              r="0.8"
+              r="0.7"
               fill={eyeColor}
             />
             <circle
-              cx={direction > 0 ? 2 : 8}
+              cx={direction > 0 ? 2.5 : 7.5}
               cy="0"
-              r="0.3"
+              r="0.25"
               fill="#ffffff"
             />
           </svg>
+          {/* 捐款者 IG 帳號文字標記 */}
+          <div 
+            className="absolute text-center w-full mt-0.5" 
+            style={{
+              fontSize: `${Math.max(8, size / 4)}px`, // 字體大小根據魚的大小調整，最小8px
+              color: 'white',
+              textShadow: '0px 0px 2px rgba(0,0,0,0.7)', // 文字陰影增加可讀性
+              transform: `translateY(${size / 2 + 2}px) scaleX(${direction})`, // 定位在魚下方並反轉方向
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: `${size * 1.5}px`, // 限制文字寬度
+              zIndex: 2, // 確保文字在魚SVG之上（雖然理論上DOM順序已決定）
+            }}
+          >
+            @{commenter.username}
+          </div>
         </motion.div>
       );
     }
@@ -486,16 +511,18 @@ export default function DonationDashboard() {
                   </svg>
                 </motion.div>
                 
-                {/* 小魚群 - 根據讚數生成不同顏色和樣式的小魚 */}
-                {generateFishes(likes)}
+                {/* 小魚群 - 根據留言者列表生成不同顏色和樣式的小魚 */}
+                {!loading && commenters.length > 0 && generateFishes(commenters)}
                 
                 {/* 氣泡群 */}
-                {generateBubbles(likes < 10 ? likes * 2 : 20)}
+                {generateBubbles(likes < 10 ? likes * 2 : Math.min(commenters.length * 2, 30))}
                 
-                {/* 讚數顯示 */}
+                {/* 讚數/留言者數顯示 */}
                 <div className="absolute bottom-2 right-2 bg-white/20 px-3 py-1 rounded-full text-sm">
-                  <span className="hidden sm:inline">{t('moreFishMessage')}</span>
-                  <span className="sm:hidden">{t('moreFishMessageMobile')}</span>
+                  {commenters.length > 0 ? 
+                    <span>{t('contributorsMessage', { count: commenters.length })}</span> : 
+                    <span>{t('moreFishMessage')}</span>
+                  }
                 </div>
               </div>
             )}

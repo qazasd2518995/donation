@@ -13,9 +13,9 @@ export function AudioProvider({ children }) {
   });
 
   const [isMuted, setIsMuted] = useState(() => {
-    if (typeof window === 'undefined') return true; // Default to muted if no window
+    if (typeof window === 'undefined') return true;
     const savedMuted = localStorage.getItem('audioMuted');
-    return savedMuted !== null ? savedMuted === 'true' : true; // Default to muted
+    return savedMuted !== null ? savedMuted === 'true' : true;
   });
 
   const [volume, setVolume] = useState(() => {
@@ -39,37 +39,49 @@ export function AudioProvider({ children }) {
     audio.volume = volume / 100;
     audio.muted = isMuted;
 
-    const localAudioRef = audioRef.current; // Capture for use in cleanup and event handlers
+    const localAudioRef = audioRef.current;
 
     const handleCanPlayThrough = () => {
       setAudioLoaded(true);
-      if (isPlaying && localAudioRef.paused) {
-        localAudioRef.play().catch(error => {
-          console.error('AudioContext: Play on canplaythrough failed', error);
-          setIsPlaying(false); // Sync state if play fails
-        });
-      }
+      // No longer auto-playing here based on isPlaying state directly,
+      // let the new useEffect handle it once audioLoaded and isPlaying are true.
     };
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
+    // Handle ended event for loop, though HTML5 audio loop attribute should handle it.
+    // const handleEnded = () => localAudioRef.play(); 
 
     localAudioRef.addEventListener('canplaythrough', handleCanPlayThrough);
     localAudioRef.addEventListener('play', handlePlay);
     localAudioRef.addEventListener('pause', handlePause);
+    // localAudioRef.addEventListener('ended', handleEnded);
     
-    // If audio is already loaded enough to play, trigger a manual check
     if (localAudioRef.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
-      handleCanPlayThrough();
+      setAudioLoaded(true); // If already loaded, set state
     }
 
     return () => {
       localAudioRef.removeEventListener('canplaythrough', handleCanPlayThrough);
       localAudioRef.removeEventListener('play', handlePlay);
       localAudioRef.removeEventListener('pause', handlePause);
-      // Note: Do not remove the audio element itself from the DOM here, as it's global
+      // localAudioRef.removeEventListener('ended', handleEnded);
     };
-  }, []); // Runs once on mount
+  }, []); // Initial setup
+
+  // Effect to control play/pause based on isPlaying and audioLoaded state
+  useEffect(() => {
+    if (audioRef.current && audioLoaded) {
+      if (isPlaying) {
+        audioRef.current.play().catch(error => {
+          console.error('AudioContext: useEffect play failed', error);
+          setIsPlaying(false); // Sync if play fails
+        });
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, audioLoaded]); // Re-run when isPlaying or audioLoaded changes
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -95,31 +107,23 @@ export function AudioProvider({ children }) {
     }
   }, [volume]);
 
-  const playAudio = () => {
+  const playAudioInternal = () => {
     if (audioRef.current && audioLoaded) {
       audioRef.current.play().catch(error => {
-        console.error('AudioContext: playAudio command failed', error);
-        setIsPlaying(false); // Fallback if promise rejects and no 'pause' event fires
+        console.error('AudioContext: playAudioInternal command failed', error);
+        setIsPlaying(false); 
       });
-    } else if (audioRef.current && !audioLoaded) {
-      // If not loaded, set isPlaying to true, hoping canplaythrough will pick it up
-      // This might be too optimistic, but aligns with user intent to play
-      setIsPlaying(true);
     }
   };
 
-  const pauseAudio = () => {
+  const pauseAudioInternal = () => {
     if (audioRef.current) {
       audioRef.current.pause();
     }
   };
 
   const togglePlay = () => {
-    if (isPlaying) {
-      pauseAudio();
-    } else {
-      playAudio();
-    }
+    setIsPlaying(prev => !prev); // This will trigger the useEffect for play/pause
   };
 
   const toggleMute = () => {
@@ -146,10 +150,7 @@ export function AudioProvider({ children }) {
         togglePlay,
         toggleMute,
         handleVolumeChange,
-        // Expose playAudio and pauseAudio if direct control is needed elsewhere, though typically via togglePlay
-        playAudio,
-        pauseAudio,
-        audioLoaded // expose audioLoaded if UI needs to react to it
+        audioLoaded 
       }}
     >
       {children}
