@@ -1,28 +1,75 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLanguage } from './LanguageContext';
+import { useTranslation } from './Translation';
 
 const AudioPlayer = ({ src, autoPlay = false }) => {
+  const { language } = useLanguage();
+  const { t } = useTranslation('audio');
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [volume, setVolume] = useState(50);
+  const [audioLoaded, setAudioLoaded] = useState(false);
 
   useEffect(() => {
     if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.play().catch(error => {
-          console.error('自動播放失敗:', error);
-          setIsPlaying(false);
-        });
-      } else {
-        audioRef.current.pause();
-      }
+      const handleCanPlayThrough = () => {
+        setAudioLoaded(true);
+        if (isPlaying) {
+          tryPlayAudio();
+        }
+      };
+      
+      audioRef.current.addEventListener('canplaythrough', handleCanPlayThrough);
+      
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.removeEventListener('canplaythrough', handleCanPlayThrough);
+        }
+      };
     }
   }, [isPlaying]);
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume / 100;
+    if (audioRef.current && audioLoaded) {
+      if (isPlaying) {
+        tryPlayAudio();
+      } else {
+        try {
+          audioRef.current.pause();
+        } catch (error) {
+          console.error(t('playMusicError'), error);
+        }
+      }
     }
-  }, [volume]);
+  }, [isPlaying, audioLoaded, t]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      try {
+        audioRef.current.volume = volume / 100;
+      } catch (error) {
+        console.error(t('volumeError'), error);
+      }
+    }
+  }, [volume, t]);
+  
+  const tryPlayAudio = () => {
+    if (!audioRef.current) return;
+    
+    try {
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error(t('autoPlayError'), error);
+          setIsPlaying(false);
+        });
+      }
+    } catch (error) {
+      console.error(t('playMusicError'), error);
+      setIsPlaying(false);
+    }
+  };
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
@@ -34,7 +81,15 @@ const AudioPlayer = ({ src, autoPlay = false }) => {
 
   return (
     <div className="fixed bottom-4 right-4 bg-secondary/80 backdrop-blur-md p-2 rounded-lg shadow-lg z-50 flex items-center gap-3">
-      <audio ref={audioRef} src={src} loop />
+      <audio 
+        ref={audioRef} 
+        src={src} 
+        loop 
+        onError={(e) => {
+          console.error(t('playError'), e);
+          setIsPlaying(false);
+        }}
+      />
       
       <button 
         onClick={togglePlay}

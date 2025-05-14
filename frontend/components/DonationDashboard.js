@@ -1,11 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { useLanguage } from './LanguageContext';
+import { useTranslation } from './Translation';
 
 // 通過環境變數獲取API基礎URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
 
 export default function DonationDashboard() {
+  const { language } = useLanguage();
+  const { t } = useTranslation('home');
   const [likes, setLikes] = useState(0);
   const [prevLikes, setPrevLikes] = useState(0);
   const [dailyData, setDailyData] = useState([]);
@@ -51,8 +55,19 @@ export default function DonationDashboard() {
   // 監聽音效播放
   useEffect(() => {
     if (playSound && soundRef.current) {
-      soundRef.current.currentTime = 0;
-      soundRef.current.play().catch(e => console.error('播放音效失敗:', e));
+      try {
+        soundRef.current.currentTime = 0;
+        const playPromise = soundRef.current.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            console.log('播放音效被瀏覽器阻止或檔案問題:', e);
+            // 不處理錯誤，只記錄
+          });
+        }
+      } catch (e) {
+        console.log('播放音效失敗:', e);
+      }
       setPlaySound(false);
     }
   }, [playSound]);
@@ -124,7 +139,7 @@ export default function DonationDashboard() {
         console.log(`重試中... (${retryCount + 1}/3)`);
         setTimeout(() => loadData(retryCount + 1), 2000 * (retryCount + 1));
       } else {
-        setError(`數據加載失敗: ${error.message}`);
+        setError(`${t('errorLoading')}: ${error.message}`);
       }
     } finally {
       setLoading(false);
@@ -295,7 +310,7 @@ export default function DonationDashboard() {
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 0.5, repeat: 1 }}
               >
-                +1 新按讚！ / New Like!
+                {t('newLikeMessage')}
               </motion.div>
             </motion.div>
           </motion.div>
@@ -323,17 +338,17 @@ export default function DonationDashboard() {
       </svg>
       
       <div className="z-10 w-full max-w-4xl px-4">
-        <h1 className="text-3xl md:text-5xl font-bold tracking-wider mb-2 text-center whitespace-nowrap">
-          PSK x 台灣鯨豚協會：海洋守護計畫
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider mb-2 text-center break-normal hyphens-auto px-2 whitespace-pre-line">
+          {t('title')}
         </h1>
-        <h2 className="text-xl md:text-2xl font-medium tracking-wide mb-6 text-center text-blue-200">
-          PSK x Taiwan Cetacean Society: Ocean Protection Project
+        <h2 className="text-xl md:text-2xl font-medium tracking-wide mb-6 text-center text-blue-200 break-normal px-2">
+          {t('subtitle')}
         </h2>
         
         <div className="text-center mb-8">
-          <p className="mb-2 text-lg">每 1 個 ❤️ = NT$ 1 捐給 / Each ❤️ = NT$ 1 donation to</p>
+          <p className="mb-2 text-lg">{t('donationFormula')} {t('donationTarget')}</p>
           <p className="mb-8 text-xl font-semibold">
-            台灣鯨豚協會 Taiwan Cetacean Society
+            {language === 'zh' ? '台灣鯨豚協會' : 'Taiwan Cetacean Society'}
           </p>
         </div>
         
@@ -341,7 +356,7 @@ export default function DonationDashboard() {
           {/* 總金額顯示 */}
           <div className="bg-white/10 p-6 rounded-lg shadow-lg mb-8">
             <div className="flex flex-col items-center">
-              <h2 className="text-lg opacity-80 mb-2">已累積總捐款金額 / Total Donations</h2>
+              <h2 className="text-lg opacity-80 mb-2">{t('totalDonations')}</h2>
               <AnimatePresence mode="wait">
                 <motion.p
                   key={totalDonation}
@@ -363,13 +378,13 @@ export default function DonationDashboard() {
                   +NT$ {(totalDonation - prevTotalDonation).toLocaleString()} <span className="animate-pulse">⬆️</span>
                 </motion.div>
               )}
-              <p className="mt-2 text-sm opacity-70">統計時間 / Statistics time: {statisticDate}</p>
+              <p className="mt-2 text-sm opacity-70">{t('statisticsTime')}: {statisticDate}</p>
             </div>
           </div>
           
           {/* 互動式鯨魚計數器 - 取代原有的折線圖 */}
           <div className="bg-white/10 p-4 rounded-lg shadow-lg mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-center">海洋生態計數器 / Ocean Ecology Counter</h2>
+            <h2 className="text-xl font-semibold mb-4 text-center">{t('oceanCounter')}</h2>
             {loading ? (
               <div className="flex justify-center py-16">
                 <div className="w-12 h-12 border-4 border-secondary border-t-transparent rounded-full animate-spin"></div>
@@ -479,8 +494,8 @@ export default function DonationDashboard() {
                 
                 {/* 讚數顯示 */}
                 <div className="absolute bottom-2 right-2 bg-white/20 px-3 py-1 rounded-full text-sm">
-                  <span className="hidden sm:inline">捐款越多，小魚越多！ More donations = More fish!</span>
-                  <span className="sm:hidden">捐款 = 小魚！ Donations = Fish!</span>
+                  <span className="hidden sm:inline">{t('moreFishMessage')}</span>
+                  <span className="sm:hidden">{t('moreFishMessageMobile')}</span>
                 </div>
               </div>
             )}
@@ -489,38 +504,29 @@ export default function DonationDashboard() {
           {/* 錯誤顯示 */}
           {error && (
             <div className="mt-4 p-2 bg-red-500/20 rounded text-center">
-              {error} / Error loading data
+              {error}
             </div>
           )}
           
           {/* 資訊區塊 */}
           <div className="mt-8 p-6 bg-white/10 rounded-lg">
-            <h2 className="text-2xl font-bold mb-4">關於台灣鯨豚協會 / About Taiwan Cetacean Society</h2>
+            <h2 className="text-2xl font-bold mb-4">{t('aboutSection')}</h2>
             <div className="space-y-4">
               <div>
                 <p className="mb-1">
-                  台灣海域擁有豐富的鯨豚資源，台灣鯨豚協會致力於台灣沿海的鯨豚生態系研究、鯨豚保育與海洋環境教育活動，推動鯨豚觀光與保育之平衡，提昇整體海洋生態系永續經營之理念。
-                </p>
-                <p className="text-sm text-blue-200">
-                  Taiwan's waters are rich in cetacean resources. The Taiwan Cetacean Society is dedicated to researching cetacean ecosystems, promoting conservation, and marine environmental education along Taiwan's coast. We strive to balance cetacean tourism with conservation and promote sustainable management of marine ecosystems.
+                  {t('aboutContent')}
                 </p>
               </div>
               
               <div>
                 <p className="mb-1">
-                  您的每一個按讚都將轉化為實質捐款，幫助協會持續推動海洋保育工作，讓我們一起為保護海洋生態盡一份心力！
-                </p>
-                <p className="text-sm text-blue-200">
-                  Each of your likes will be converted into a real donation, helping the society continue its marine conservation efforts. Let's work together to protect marine ecosystems!
+                  {t('donationInfo')}
                 </p>
               </div>
               
               <div>
                 <p className="mb-1">
-                  除了按讚捐款，您也可以參與我們的抽獎活動！只需追蹤 PSK 官方 Instagram 帳號、按讚貼文，並在貼文下留言加上 #P、#S 或 #K 標籤，即可有機會獲得多項精美獎品！
-                </p>
-                <p className="text-sm text-blue-200">
-                  In addition to donation through likes, you can also participate in our lucky draw! Simply follow PSK's official Instagram account, like the post, and comment with #P, #S, or #K tags for a chance to win various prizes!
+                  {t('drawInfo')}
                 </p>
               </div>
             </div>
@@ -530,11 +536,11 @@ export default function DonationDashboard() {
           <div className="mt-8 text-center text-sm text-white/70">
             <div className="mb-4">
               <Link href="/winners" className="text-white hover:text-secondary transition-colors text-base font-semibold bg-white/20 px-4 py-2 rounded-full">
-                查看活動規則與抽獎結果 / View Rules & Draw Results
+                {t('viewRules')}
               </Link>
             </div>
-            <p>© 2024 PSK x Taiwan Cetacean Society</p>
-            <p>數據更新頻率 / Data update frequency: 每 30 秒 / Every 30 seconds</p>
+            <p>{t('copyright')}</p>
+            <p>{t('updateFrequency')}</p>
           </div>
         </div>
       </div>
