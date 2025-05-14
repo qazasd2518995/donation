@@ -402,13 +402,22 @@ export default function WinnerPage() {
     
     // 只在客戶端執行與 window 相關的代碼
     if (typeof window !== 'undefined') {
-      // 更新為偵測頁面底部的位置
-      const updateScrollThreshold = () => {
-        // 現在使用頁面高度的70%作為轉換點，這樣滾動到70%處就會轉換顏色
-        setScrollThreshold(window.innerHeight * 0.4);
+      // 初始化滾動偵測相關的數值
+      const updateScrollValues = () => {
+        // 獲取文檔的總高度
+        const documentHeight = Math.max(
+          document.body.scrollHeight,
+          document.body.offsetHeight,
+          document.documentElement.clientHeight,
+          document.documentElement.scrollHeight,
+          document.documentElement.offsetHeight
+        );
+        
+        // 設置一個閾值，代表頁面的中間點
+        setScrollThreshold(documentHeight * 0.5);
       };
       
-      updateScrollThreshold();
+      updateScrollValues();
 
       const adminStatus = localStorage.getItem('drawAdmin');
       if (adminStatus === 'true') {
@@ -417,15 +426,6 @@ export default function WinnerPage() {
       
       const handleScroll = () => {
         setCurrentScrollY(window.scrollY);
-        
-        // 檢測是否到達頁面底部，如果是則重置為白色
-        const isAtBottom = 
-          window.innerHeight + window.scrollY >= document.body.offsetHeight - 100;
-        
-        if (isAtBottom) {
-          // 如果到達頁面底部，立即將顏色設置為白色
-          setCurrentScrollY(0); // 重置為頁面頂部的滾動值，這樣顏色會變成白色
-        }
       };
 
       window.addEventListener('scroll', handleScroll, { passive: true });
@@ -436,7 +436,7 @@ export default function WinnerPage() {
       
       // 更新resize處理器
       const handleResize = () => {
-        updateScrollThreshold();
+        updateScrollValues();
       };
       window.addEventListener('resize', handleResize);
 
@@ -456,32 +456,41 @@ export default function WinnerPage() {
     console.log('當前追蹤狀態:', followingUsers);
   };
 
-  // 根據滾動位置計算文字顏色的透明度，實現平滑過渡
+  // 根據滾動位置計算文字顏色，從頂部的白色到中間的灰色再到底部的黑色
   const getTextColorStyle = () => {
     if (typeof window === 'undefined') {
       return { color: 'white' }; // 服務器端渲染默認返回白色
     }
     
-    // 減小過渡範圍，使顏色變化更快
-    const transitionRange = window.innerHeight * 0.1; // 從0.2減少到0.1，使過渡範圍更窄
-    const startTransition = scrollThreshold - transitionRange;
-    const endTransition = scrollThreshold + transitionRange;
+    // 獲取文檔總高度
+    const documentHeight = Math.max(
+      document.body.scrollHeight,
+      document.body.offsetHeight,
+      document.documentElement.clientHeight,
+      document.documentElement.scrollHeight,
+      document.documentElement.offsetHeight
+    );
     
-    if (currentScrollY <= startTransition) {
-      // 還未開始過渡，保持白色
-      return { color: 'white' };
-    } else if (currentScrollY >= endTransition) {
-      // 過渡結束，完全黑色
-      return { color: 'black' };
+    // 可視區域高度
+    const viewportHeight = window.innerHeight;
+    
+    // 可滾動的總距離
+    const scrollableDistance = documentHeight - viewportHeight;
+    
+    // 當前滾動進度比例 (0 到 1)
+    const scrollProgress = Math.min(currentScrollY / scrollableDistance, 1);
+    
+    // 根據滾動進度計算顏色
+    if (scrollProgress <= 0.5) {
+      // 從白色 (255,255,255) 到灰色 (128,128,128)
+      // 前半段滾動 (0-0.5)
+      const intensity = Math.round(255 - scrollProgress * 2 * (255 - 128));
+      return { color: `rgb(${intensity}, ${intensity}, ${intensity})` };
     } else {
-      // 正在過渡中，計算中間顏色，使用更敏感的進度計算
-      const progress = (currentScrollY - startTransition) / (endTransition - startTransition);
-      // 使用指數函數使顏色變化更快
-      const adjustedProgress = Math.pow(progress, 0.7); // 減小指數可以加快初始變化速度
-      const r = Math.round(255 - adjustedProgress * 255);
-      const g = Math.round(255 - adjustedProgress * 255);
-      const b = Math.round(255 - adjustedProgress * 255);
-      return { color: `rgb(${r}, ${g}, ${b})` };
+      // 從灰色 (128,128,128) 到黑色 (0,0,0)
+      // 後半段滾動 (0.5-1.0)
+      const intensity = Math.round(128 - (scrollProgress - 0.5) * 2 * 128);
+      return { color: `rgb(${intensity}, ${intensity}, ${intensity})` };
     }
   };
 
