@@ -279,6 +279,15 @@ export default function DonationDashboard() {
       {/* 背景裝飾 */}
       <div className="absolute inset-0 wave-background opacity-10 z-0"></div>
       
+      {/* 圖片背景 - 添加鯨魚圖片作為背景 */}
+      <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none">
+        <img 
+          src="/images/background-whale.jpg" 
+          alt="背景鯨魚圖案" 
+          className="max-w-[90%] max-h-[90%] object-contain opacity-[0.15]" 
+        />
+      </div>
+      
       {/* 隱藏的音效元素 */}
       <audio ref={soundRef} src="/music/like_sound.mp3" preload="auto" />
       
