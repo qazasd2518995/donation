@@ -400,35 +400,38 @@ export default function WinnerPage() {
     fetchComments();
     fetchPrizes();
     
-    // Set initial scroll threshold based on window height
-    setScrollThreshold(window.innerHeight * 0.5);
-
-    const adminStatus = localStorage.getItem('drawAdmin');
-    if (adminStatus === 'true') {
-      setIsAdmin(true);
-    }
-    
-    const handleScroll = () => {
-      setCurrentScrollY(window.scrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    const intervalId = setInterval(() => {
-      fetchComments();
-    }, 30000);
-    
-    // Debounce or throttle resize listener if performance becomes an issue
-    const handleResize = () => {
+    // 只在客戶端執行與 window 相關的代碼
+    if (typeof window !== 'undefined') {
+      // Set initial scroll threshold based on window height
       setScrollThreshold(window.innerHeight * 0.5);
-    };
-    window.addEventListener('resize', handleResize);
 
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-      clearInterval(intervalId);
-    };
+      const adminStatus = localStorage.getItem('drawAdmin');
+      if (adminStatus === 'true') {
+        setIsAdmin(true);
+      }
+      
+      const handleScroll = () => {
+        setCurrentScrollY(window.scrollY);
+      };
+
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      
+      const intervalId = setInterval(() => {
+        fetchComments();
+      }, 30000);
+      
+      // Debounce or throttle resize listener if performance becomes an issue
+      const handleResize = () => {
+        setScrollThreshold(window.innerHeight * 0.5);
+      };
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        window.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('resize', handleResize);
+        clearInterval(intervalId);
+      };
+    }
   }, []);
 
   // 增加偵錯日誌函數
@@ -441,6 +444,10 @@ export default function WinnerPage() {
 
   // 根據滾動位置計算文字顏色的透明度，實現平滑過渡
   const getTextColorStyle = () => {
+    if (typeof window === 'undefined') {
+      return { color: 'white' }; // 服務器端渲染默認返回白色
+    }
+    
     // 當滾動超過閾值的前後一定範圍時，生成從白色到黑色的平滑過渡
     const transitionRange = window.innerHeight * 0.2; // 過渡範圍為視窗高度的20%
     const startTransition = scrollThreshold - transitionRange;
