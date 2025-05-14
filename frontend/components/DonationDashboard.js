@@ -273,8 +273,8 @@ export default function DonationDashboard() {
       "#7FFFD4", "#AFEEEE", "#00FFFF", "#00BFFF", "#1E90FF"
     ];
     
-    // 使用讚數來決定魚的數量，最多顯示30條魚
-    const fishCount = Math.min(likes, 30);
+    // 不限制魚的數量，完全對應讚數
+    const fishCount = likes;
     
     for (let i = 0; i < fishCount; i++) {
       // 增加魚的大小差異，範圍從很小到較大

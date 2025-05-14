@@ -439,6 +439,30 @@ export default function WinnerPage() {
     console.log('當前追蹤狀態:', followingUsers);
   };
 
+  // 根據滾動位置計算文字顏色的透明度，實現平滑過渡
+  const getTextColorStyle = () => {
+    // 當滾動超過閾值的前後一定範圍時，生成從白色到黑色的平滑過渡
+    const transitionRange = window.innerHeight * 0.2; // 過渡範圍為視窗高度的20%
+    const startTransition = scrollThreshold - transitionRange;
+    const endTransition = scrollThreshold + transitionRange;
+    
+    if (currentScrollY <= startTransition) {
+      // 還未開始過渡，保持白色
+      return { color: 'white' };
+    } else if (currentScrollY >= endTransition) {
+      // 過渡結束，完全黑色
+      return { color: 'black' };
+    } else {
+      // 正在過渡中，計算中間顏色
+      const progress = (currentScrollY - startTransition) / (endTransition - startTransition);
+      const r = Math.round(255 - progress * 255);
+      const g = Math.round(255 - progress * 255);
+      const b = Math.round(255 - progress * 255);
+      return { color: `rgb(${r}, ${g}, ${b})` };
+    }
+  };
+
+  // 獲取基於滾動位置的文字顏色類名
   const dynamicTextColorClass = currentScrollY > scrollThreshold ? 'text-black' : 'text-white';
   
   return (
@@ -450,7 +474,7 @@ export default function WinnerPage() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <main className={`min-h-screen bg-gradient-to-b from-primary to-primary-dark ${currentScrollY > scrollThreshold ? '' : 'text-white'} transition-colors duration-300 ease-in-out`}>
+      <main className={`min-h-screen bg-gradient-to-b from-primary to-primary-dark transition-colors duration-300 ease-in-out`} style={getTextColorStyle()}>
         {/* Apply transition-colors to main container to affect all children inheriting text color */}
         <audio ref={drawSoundRef} src="/music/draw_sound.mp3" preload="auto"></audio>
         
@@ -510,7 +534,7 @@ export default function WinnerPage() {
           </div>
         )}
         
-        <div className={`container mx-auto px-4 py-10 text-current`}>
+        <div className={`container mx-auto px-4 py-10`}>
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
               <h1 className="text-4xl font-bold mb-2">{t('pageTitle')}</h1>
@@ -521,14 +545,14 @@ export default function WinnerPage() {
               <div className="bg-secondary rounded-full p-1 inline-flex">
                 <button 
                   onClick={() => setActiveTab('winners')}
-                  className={`px-4 py-2 rounded-full transition-colors duration-300 ease-in-out ${activeTab === 'winners' ? 'bg-primary-dark text-white' : `hover:bg-primary-dark/50 ${dynamicTextColorClass}`}`}
+                  className={`px-4 py-2 rounded-full transition-colors duration-300 ease-in-out ${activeTab === 'winners' ? 'bg-primary-dark text-white' : 'hover:bg-primary-dark/50'}`}
                 >
                   {t('resultsTab')}
                 </button>
                 {isAdmin && (
                   <button 
                     onClick={() => setActiveTab('verify')}
-                    className={`px-4 py-2 rounded-full transition-colors duration-300 ease-in-out ${activeTab === 'verify' ? 'bg-primary-dark text-white' : `hover:bg-primary-dark/50 ${dynamicTextColorClass}`}`}
+                    className={`px-4 py-2 rounded-full transition-colors duration-300 ease-in-out ${activeTab === 'verify' ? 'bg-primary-dark text-white' : 'hover:bg-primary-dark/50'}`}
                   >
                     {t('verifyTab')}
                   </button>
