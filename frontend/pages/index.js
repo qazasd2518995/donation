@@ -1,6 +1,5 @@
 import Head from 'next/head';
 import DonationDashboard from '../components/DonationDashboard';
-import AudioPlayer from '../components/AudioPlayer';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../components/LanguageContext';
 import { useTranslation } from '../components/Translation';
@@ -21,7 +20,6 @@ export default function Home() {
       <main>
         <LanguageToggle />
         <DonationDashboard />
-        <AudioPlayer src="/music/theme_song_fa.wav" autoPlay={true} muted={true} />
       </main>
     </>
   );
