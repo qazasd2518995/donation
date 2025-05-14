@@ -402,8 +402,13 @@ export default function WinnerPage() {
     
     // 只在客戶端執行與 window 相關的代碼
     if (typeof window !== 'undefined') {
-      // Set initial scroll threshold based on window height
-      setScrollThreshold(window.innerHeight * 0.5);
+      // 更新為偵測頁面底部的位置
+      const updateScrollThreshold = () => {
+        // 現在使用頁面高度的70%作為轉換點，這樣滾動到70%處就會轉換顏色
+        setScrollThreshold(window.innerHeight * 0.4);
+      };
+      
+      updateScrollThreshold();
 
       const adminStatus = localStorage.getItem('drawAdmin');
       if (adminStatus === 'true') {
@@ -412,6 +417,15 @@ export default function WinnerPage() {
       
       const handleScroll = () => {
         setCurrentScrollY(window.scrollY);
+        
+        // 檢測是否到達頁面底部，如果是則重置為白色
+        const isAtBottom = 
+          window.innerHeight + window.scrollY >= document.body.offsetHeight - 100;
+        
+        if (isAtBottom) {
+          // 如果到達頁面底部，立即將顏色設置為白色
+          setCurrentScrollY(0); // 重置為頁面頂部的滾動值，這樣顏色會變成白色
+        }
       };
 
       window.addEventListener('scroll', handleScroll, { passive: true });
@@ -420,9 +434,9 @@ export default function WinnerPage() {
         fetchComments();
       }, 30000);
       
-      // Debounce or throttle resize listener if performance becomes an issue
+      // 更新resize處理器
       const handleResize = () => {
-        setScrollThreshold(window.innerHeight * 0.5);
+        updateScrollThreshold();
       };
       window.addEventListener('resize', handleResize);
 
@@ -448,8 +462,8 @@ export default function WinnerPage() {
       return { color: 'white' }; // 服務器端渲染默認返回白色
     }
     
-    // 當滾動超過閾值的前後一定範圍時，生成從白色到黑色的平滑過渡
-    const transitionRange = window.innerHeight * 0.2; // 過渡範圍為視窗高度的20%
+    // 減小過渡範圍，使顏色變化更快
+    const transitionRange = window.innerHeight * 0.1; // 從0.2減少到0.1，使過渡範圍更窄
     const startTransition = scrollThreshold - transitionRange;
     const endTransition = scrollThreshold + transitionRange;
     
@@ -460,11 +474,13 @@ export default function WinnerPage() {
       // 過渡結束，完全黑色
       return { color: 'black' };
     } else {
-      // 正在過渡中，計算中間顏色
+      // 正在過渡中，計算中間顏色，使用更敏感的進度計算
       const progress = (currentScrollY - startTransition) / (endTransition - startTransition);
-      const r = Math.round(255 - progress * 255);
-      const g = Math.round(255 - progress * 255);
-      const b = Math.round(255 - progress * 255);
+      // 使用指數函數使顏色變化更快
+      const adjustedProgress = Math.pow(progress, 0.7); // 減小指數可以加快初始變化速度
+      const r = Math.round(255 - adjustedProgress * 255);
+      const g = Math.round(255 - adjustedProgress * 255);
+      const b = Math.round(255 - adjustedProgress * 255);
       return { color: `rgb(${r}, ${g}, ${b})` };
     }
   };
