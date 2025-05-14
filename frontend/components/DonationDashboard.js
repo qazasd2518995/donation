@@ -111,46 +111,56 @@ export default function DonationDashboard() {
         const uniqueCommenters = [];
         const seenUserIds = new Set();
         
+        // 輸出留言數據結構以調試
+        if (commentsArray.length > 0) {
+          console.log('調試: 第一條留言數據結構:', JSON.stringify(commentsArray[0], null, 2));
+        }
+        
         // 確保每條留言都能被處理，無論其結構如何
         commentsArray.forEach(comment => {
           try {
-            // 確保獲取真實的 Instagram 用戶名
+            // 提取用戶名 - 優先獲取 Instagram 用戶名
             let username = '';
-            let userId = '';
             
-            // 首先嘗試獲取用戶名 (Instagram handle)
-            if (comment.username) {
-              username = comment.username; // 直接使用 username 字段
-            } else if (comment.from?.username) {
-              username = comment.from.username;
-            } else if (comment.user?.username) {
-              username = comment.user.username;
-            } else if (comment.instagram_username) {
-              username = comment.instagram_username;
-            } else if (comment.from?.name) {
-              username = comment.from.name;
-            } else if (comment.name) {
-              username = comment.name;
-            } else if (comment.user?.name) {
-              username = comment.user.name;
-            } else {
-              // 如果無法找到合適的用戶名，使用一個唯一ID
-              username = `user${uniqueCommenters.length + 1}`;
+            // 嘗試找出真實的 Instagram 帳號名稱
+            if (typeof comment === 'object') {
+              // 嘗試所有可能的字段名和路徑
+              if (comment.username) username = comment.username;
+              else if (comment.instagram_username) username = comment.instagram_username;
+              else if (comment.from?.username) username = comment.from.username;
+              else if (comment.user?.username) username = comment.user.username;
+              else if (comment.instagram_handle) username = comment.instagram_handle;
+              else if (comment.user_name) username = comment.user_name;
+              // 如果以上都沒有，嘗試其他字段
+              else if (comment.from?.name) username = comment.from.name;
+              else if (comment.name) username = comment.name;
+              else if (comment.user?.name) username = comment.user.name;
+              else if (comment.display_name) username = comment.display_name;
+              else if (comment.text) {
+                // 嘗試從留言文本中提取 Instagram 用戶名（如果有 @ 符號）
+                const match = comment.text.match(/@([a-zA-Z0-9._]+)/);
+                if (match && match[1]) username = match[1];
+              }
             }
             
-            // 然後獲取用戶ID，用於確保唯一性
-            userId = comment.from?.id || comment.id || comment.user_id || comment.userId || `anonymous-${uniqueCommenters.length}`;
-            
-            // 確保用戶名以字母開頭，避免純數字ID
-            if (/^\d+$/.test(username)) {
-              username = `ig_${username}`;
+            // 如果仍然沒有找到用戶名，生成一個隨機的
+            if (!username || username.trim() === '') {
+              username = `ocean_${Math.random().toString(36).substring(2, 8)}`;
             }
             
-            // 只有還未見過這個用戶ID時才添加
+            // 確保用戶名不包含不必要的前綴
+            username = username.replace(/^@+/, ''); // 移除開頭的 @ 符號(如果有)
+            
+            // 嘗試獲取唯一的用戶標識符
+            const userId = comment.from?.id || comment.id || comment.user_id || comment.userId || 
+                         comment.from?.username || comment.username ||
+                         `user-${username}-${uniqueCommenters.length}`;
+            
+            // 只有唯一用戶才添加
             if (!seenUserIds.has(userId)) {
               uniqueCommenters.push({
                 id: userId,
-                username: username // 使用真實的 Instagram 用戶名
+                username: username
               });
               seenUserIds.add(userId);
             }
@@ -162,10 +172,10 @@ export default function DonationDashboard() {
         console.log(`成功處理 ${uniqueCommenters.length} 個獨特留言者`);
         setCommenters(uniqueCommenters);
       } else {
-        // 如果沒有有效的留言數據，則創建一些測試數據以顯示魚群
-        const demoCommenters = Array.from({ length: 10 }, (_, i) => ({
+        // 如果沒有有效的留言數據，則創建少量測試數據
+        const demoCommenters = Array.from({ length: 5 }, (_, i) => ({
           id: `demo-${i}`,
-          username: `ig_user${i+1}` // 使用更真實的Instagram風格用戶名作為測試數據
+          username: `ocean_guardian${i+1}`
         }));
         console.log('未找到留言數據，使用測試數據顯示魚群');
         setCommenters(demoCommenters);
@@ -248,7 +258,8 @@ export default function DonationDashboard() {
       "#E6E6FA", "#F0E68C", "#87CEFA", "#DDA0DD", "#B0E0E6",
     ];
     
-    const maxFishes = Math.min(commenterList.length, 100);
+    // 限制最多30條魚，如果實際留言數不足，則顯示實際數量
+    const maxFishes = Math.min(commenterList.length, 30);
     
     for (let i = 0; i < maxFishes; i++) {
       const commenter = commenterList[i];
@@ -261,6 +272,9 @@ export default function DonationDashboard() {
       const shapeIndex = Math.floor(Math.random() * fishShapes.length);
       const colorIndex = Math.floor(Math.random() * fishColors.length);
       const eyeColor = "#000";
+      
+      // 確保顯示的用戶名不包含@前綴
+      const displayName = commenter.username.replace(/^@+/, '');
       
       fishes.push(
         <motion.div
@@ -305,16 +319,24 @@ export default function DonationDashboard() {
             style={{
               fontSize: `${Math.max(8, size / 4)}px`,
               color: 'white',
-              textShadow: '0px 0px 2px rgba(0,0,0,0.7)',
+              textShadow: '0px 0px 3px rgba(0,0,0,0.8), 0px 0px 5px rgba(0,100,255,0.9)',
               transform: `translateY(${size / 2 + 2}px) scaleX(${direction})`,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               maxWidth: `${size * 1.5}px`,
-              zIndex: 2, 
+              zIndex: 2,
+              fontWeight: 'bold',
+              letterSpacing: '0.5px',
+              padding: '2px 6px',
+              borderRadius: '8px',
+              background: 'linear-gradient(to bottom, rgba(76,154,255,0.3), rgba(0,91,187,0.1))',
+              backdropFilter: 'blur(2px)',
+              border: '0.5px solid rgba(255,255,255,0.4)',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
             }}
           >
-            @{commenter.username}
+            {displayName}
           </div>
         </motion.div>
       );
