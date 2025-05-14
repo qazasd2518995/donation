@@ -21,7 +21,7 @@ export default function Home() {
       <main>
         <LanguageToggle />
         <DonationDashboard />
-        <AudioPlayer src="/music/theme_song_fa.wav" autoPlay={true} />
+        <AudioPlayer src="/music/theme_song_fa.wav" autoPlay={false} />
       </main>
     </>
   );
