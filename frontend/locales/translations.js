@@ -4,7 +4,7 @@ const translations = {
   // 主頁翻譯
   home: {
     zh: {
-      title: "PSK 愛海洋・愛地球 - Instagram 捐款活動",
+      title: "『保 ‧ 護』保護你，也保護地球",
       subtitle: "您的每次按讚，PSK 都將捐款支持海洋保育",
       totalDonations: "累計捐款金額",
       statisticsTime: "統計至",
@@ -24,7 +24,7 @@ const translations = {
       newLikeMessage: "感謝您的愛心！"
     },
     en: {
-      title: "PSK Loves Ocean, Loves Earth - Instagram Donation Drive",
+      title: "Surf the beat, Save the Sea",
       subtitle: "Every like you give, PSK makes a donation to support marine conservation",
       totalDonations: "Total Donations Raised",
       statisticsTime: "Statistics as of",

@@ -114,14 +114,43 @@ export default function DonationDashboard() {
         // 確保每條留言都能被處理，無論其結構如何
         commentsArray.forEach(comment => {
           try {
-            // 處理不同可能的數據結構
-            const userId = comment.from?.id || comment.id || comment.user_id || comment.userId || `anonymous-${uniqueCommenters.length}`;
-            const username = comment.from?.name || comment.username || comment.name || comment.user?.name || comment.user_name || `魚朋友${uniqueCommenters.length + 1}`;
+            // 確保獲取真實的 Instagram 用戶名
+            let username = '';
+            let userId = '';
             
+            // 首先嘗試獲取用戶名 (Instagram handle)
+            if (comment.username) {
+              username = comment.username; // 直接使用 username 字段
+            } else if (comment.from?.username) {
+              username = comment.from.username;
+            } else if (comment.user?.username) {
+              username = comment.user.username;
+            } else if (comment.instagram_username) {
+              username = comment.instagram_username;
+            } else if (comment.from?.name) {
+              username = comment.from.name;
+            } else if (comment.name) {
+              username = comment.name;
+            } else if (comment.user?.name) {
+              username = comment.user.name;
+            } else {
+              // 如果無法找到合適的用戶名，使用一個唯一ID
+              username = `user${uniqueCommenters.length + 1}`;
+            }
+            
+            // 然後獲取用戶ID，用於確保唯一性
+            userId = comment.from?.id || comment.id || comment.user_id || comment.userId || `anonymous-${uniqueCommenters.length}`;
+            
+            // 確保用戶名以字母開頭，避免純數字ID
+            if (/^\d+$/.test(username)) {
+              username = `ig_${username}`;
+            }
+            
+            // 只有還未見過這個用戶ID時才添加
             if (!seenUserIds.has(userId)) {
               uniqueCommenters.push({
                 id: userId,
-                username: username
+                username: username // 使用真實的 Instagram 用戶名
               });
               seenUserIds.add(userId);
             }
@@ -136,7 +165,7 @@ export default function DonationDashboard() {
         // 如果沒有有效的留言數據，則創建一些測試數據以顯示魚群
         const demoCommenters = Array.from({ length: 10 }, (_, i) => ({
           id: `demo-${i}`,
-          username: `海洋朋友${i+1}`
+          username: `ig_user${i+1}` // 使用更真實的Instagram風格用戶名作為測試數據
         }));
         console.log('未找到留言數據，使用測試數據顯示魚群');
         setCommenters(demoCommenters);
