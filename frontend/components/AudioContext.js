@@ -3,111 +3,117 @@ import { createContext, useContext, useState, useEffect, useRef } from 'react';
 const AudioContext = createContext();
 
 export function AudioProvider({ children }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(50);
-  const [isMuted, setIsMuted] = useState(true); // 默認為靜音
-  const audioRef = useRef(null);
   const audioSrc = useRef("/music/theme_song_fa.wav");
+  const audioRef = useRef(null);
   const [audioLoaded, setAudioLoaded] = useState(false);
-  
-  // 初始化音頻元素
+
+  const [isPlaying, setIsPlaying] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('audioPlaying') === 'true';
+  });
+
+  const [isMuted, setIsMuted] = useState(() => {
+    if (typeof window === 'undefined') return true; // Default to muted if no window
+    const savedMuted = localStorage.getItem('audioMuted');
+    return savedMuted !== null ? savedMuted === 'true' : true; // Default to muted
+  });
+
+  const [volume, setVolume] = useState(() => {
+    if (typeof window === 'undefined') return 50;
+    const savedVolume = localStorage.getItem('audioVolume');
+    return savedVolume !== null ? parseInt(savedVolume, 10) : 50;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let audio = document.getElementById('global-audio-player');
+    if (!audio) {
+      audio = new Audio();
+      audio.id = 'global-audio-player';
+      audio.src = audioSrc.current;
+      document.body.appendChild(audio);
+    }
+    audioRef.current = audio;
+    audio.loop = true;
+    audio.volume = volume / 100;
+    audio.muted = isMuted;
+
+    const localAudioRef = audioRef.current; // Capture for use in cleanup and event handlers
+
+    const handleCanPlayThrough = () => {
+      setAudioLoaded(true);
+      if (isPlaying && localAudioRef.paused) {
+        localAudioRef.play().catch(error => {
+          console.error('AudioContext: Play on canplaythrough failed', error);
+          setIsPlaying(false); // Sync state if play fails
+        });
+      }
+    };
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
+    localAudioRef.addEventListener('canplaythrough', handleCanPlayThrough);
+    localAudioRef.addEventListener('play', handlePlay);
+    localAudioRef.addEventListener('pause', handlePause);
+    
+    // If audio is already loaded enough to play, trigger a manual check
+    if (localAudioRef.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      handleCanPlayThrough();
+    }
+
+    return () => {
+      localAudioRef.removeEventListener('canplaythrough', handleCanPlayThrough);
+      localAudioRef.removeEventListener('play', handlePlay);
+      localAudioRef.removeEventListener('pause', handlePause);
+      // Note: Do not remove the audio element itself from the DOM here, as it's global
+    };
+  }, []); // Runs once on mount
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // 檢查是否已經存在全局音頻元素
-      let audio = document.getElementById('global-audio-player');
-      
-      if (!audio) {
-        audio = new Audio();
-        audio.id = 'global-audio-player';
-        audio.loop = true;
-        audio.src = audioSrc.current;
-        document.body.appendChild(audio);
-      }
-      
-      audioRef.current = audio;
-      
-      // 嘗試從 localStorage 恢復之前的播放狀態
-      const savedVolume = localStorage.getItem('audioVolume');
-      const savedMuted = localStorage.getItem('audioMuted');
-      const savedPlaying = localStorage.getItem('audioPlaying');
-      
-      if (savedVolume) setVolume(parseInt(savedVolume, 10));
-      if (savedMuted) setIsMuted(savedMuted === 'true');
-      
-      // 設置音量和靜音狀態
-      audio.volume = savedVolume ? parseInt(savedVolume, 10) / 100 : 0.5;
-      audio.muted = savedMuted ? savedMuted === 'true' : true;
-      
-      // 設置事件監聽器
-      const handleCanPlayThrough = () => {
-        setAudioLoaded(true);
-        if (savedPlaying === 'true') {
-          playAudio();
-        }
-      };
-      
-      audio.addEventListener('canplaythrough', handleCanPlayThrough);
-      
-      // 清理函數
-      return () => {
-        if (audioRef.current) {
-          audioRef.current.removeEventListener('canplaythrough', handleCanPlayThrough);
-        }
-      };
+      localStorage.setItem('audioPlaying', isPlaying.toString());
     }
-  }, []);
-  
-  // 保存狀態到 localStorage
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('audioMuted', isMuted.toString());
+    }
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('audioVolume', volume.toString());
-      localStorage.setItem('audioMuted', isMuted.toString());
-      localStorage.setItem('audioPlaying', isPlaying.toString());
     }
-  }, [volume, isMuted, isPlaying]);
-  
-  // 當音量或靜音狀態改變時更新音頻
-  useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume / 100;
-      audioRef.current.muted = isMuted;
     }
-  }, [volume, isMuted]);
-  
-  // 播放音頻的函數
+  }, [volume]);
+
   const playAudio = () => {
     if (audioRef.current && audioLoaded) {
-      try {
-        const playPromise = audioRef.current.play();
-        
-        if (playPromise !== undefined) {
-          playPromise.then(() => {
-            setIsPlaying(true);
-          }).catch(error => {
-            console.error('播放音頻失敗:', error);
-            setIsPlaying(false);
-          });
-        }
-      } catch (error) {
-        console.error('播放音頻錯誤:', error);
-        setIsPlaying(false);
-      }
+      audioRef.current.play().catch(error => {
+        console.error('AudioContext: playAudio command failed', error);
+        setIsPlaying(false); // Fallback if promise rejects and no 'pause' event fires
+      });
+    } else if (audioRef.current && !audioLoaded) {
+      // If not loaded, set isPlaying to true, hoping canplaythrough will pick it up
+      // This might be too optimistic, but aligns with user intent to play
+      setIsPlaying(true);
     }
   };
-  
-  // 暫停音頻的函數
+
   const pauseAudio = () => {
     if (audioRef.current) {
-      try {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      } catch (error) {
-        console.error('暫停音頻錯誤:', error);
-      }
+      audioRef.current.pause();
     }
   };
-  
-  // 切換播放/暫停的函數
+
   const togglePlay = () => {
     if (isPlaying) {
       pauseAudio();
@@ -115,33 +121,21 @@ export function AudioProvider({ children }) {
       playAudio();
     }
   };
-  
-  // 切換靜音的函數
+
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    setIsMuted(prev => !prev);
   };
-  
-  // 設置音量的函數
+
   const handleVolumeChange = (newVolume) => {
     const volumeValue = parseInt(newVolume, 10);
     setVolume(volumeValue);
-    
-    // 如果音量大於0且靜音，則取消靜音
     if (volumeValue > 0 && isMuted) {
       setIsMuted(false);
     }
-    // 如果音量為0且未靜音，則設置靜音
-    else if (volumeValue === 0 && !isMuted) {
+    if (volumeValue === 0 && !isMuted) {
       setIsMuted(true);
     }
   };
-  
-  // 當組件掛載時自動開始播放音頻（靜音狀態）
-  useEffect(() => {
-    if (audioLoaded && audioRef.current && !isPlaying) {
-      playAudio();
-    }
-  }, [audioLoaded]);
   
   return (
     <AudioContext.Provider 
@@ -152,8 +146,10 @@ export function AudioProvider({ children }) {
         togglePlay,
         toggleMute,
         handleVolumeChange,
+        // Expose playAudio and pauseAudio if direct control is needed elsewhere, though typically via togglePlay
         playAudio,
-        pauseAudio
+        pauseAudio,
+        audioLoaded // expose audioLoaded if UI needs to react to it
       }}
     >
       {children}
@@ -161,7 +157,6 @@ export function AudioProvider({ children }) {
   );
 }
 
-// 自定義 Hook，方便在組件中使用音頻 Context
 export function useAudio() {
   return useContext(AudioContext);
 } 
