@@ -61,6 +61,46 @@ export default function DonationDashboard() {
     }
   }, [playSound]);
   
+  const generateDashboardBubbles = (count = 40) => {
+    const bubbles = [];
+    if (typeof window === 'undefined' || !isClient) return bubbles;
+
+    for (let i = 0; i < count; i++) {
+      const size = Math.random() * 15 + 4; // 氣泡大小 4px 到 19px
+      const initialX = Math.random() * 100;
+      const duration = Math.random() * 20 + 15; // 持續時間 15秒 到 35秒
+      const delay = Math.random() * 15; // 延遲 0秒 到 15秒
+
+      bubbles.push(
+        <motion.div
+          key={`dashboard-bubble-${i}`}
+          className="absolute rounded-full bg-blue-400/30 backdrop-blur-sm"
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            left: `${initialX}%`,
+            bottom: `${Math.random() * 20 - 10}%`,
+            zIndex: 1,
+          }}
+          animate={{
+            y: [`0%`, `-115vh`],
+            x: [`${initialX}%`, `${initialX + (Math.random() * 20 - 10)}%`],
+            opacity: [0, 0.7, 0.7, 0],
+            scale: [0.3, 1, Math.random() * 0.4 + 0.5],
+          }}
+          transition={{
+            duration: duration,
+            delay: delay,
+            repeat: Infinity,
+            ease: "linear",
+            times: [0, 0.1, 0.9, 1]
+          }}
+        />
+      );
+    }
+    return bubbles;
+  };
+
   async function loadDashboardData(retryCount = 0) {
     try {
       setLoading(true);
@@ -390,45 +430,89 @@ export default function DonationDashboard() {
   
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-primary text-white relative overflow-hidden">
-      {/* 新增：流動的水波紋背景 - 更底層 */}
+      {/* 圖層 1: 流動的水波紋背景 - 更清晰 */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <motion.div 
-          className="absolute inset-0 bg-wave-pattern opacity-5"
-          animate={{ backgroundPositionX: ["0%", "100%"] }}
-          transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-          style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%' }}
+          className="absolute inset-0 bg-wave-pattern opacity-10"
+          animate={{ backgroundPositionX: ["0%", "150%"] }}
+          transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+          style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%', filter: 'brightness(1.1) saturate(1.2)' }}
         />
       </div>
 
-      {/* 原有的 wave-background - 提高一點 z-index */}
-      <div className="absolute inset-0 wave-background opacity-10 z-[1]"></div>
+      {/* 圖層 2: 原有的 wave-background - 可選保留或調整 */}
+      {/* <div className="absolute inset-0 wave-background opacity-10 z-[1]"></div> */}
+      {/* 如果 wave-background 效果不明顯或想簡化，可以考慮註釋掉此行 */}
 
-      {/* 新增：漂浮的海草或氣泡元素 - 更高層 */}
-      {isClient && Array.from({ length: 5 }).map((_, index) => (
-        <motion.div
-          key={`seaweed-${index}`}
-          className={`absolute bottom-0 z-[2] ${index % 2 === 0 ? 'left-[10%]' : 'right-[10%]'} opacity-20`}
-          style={{
-            width: `${Math.random() * 30 + 20}px`,
-            height: `${Math.random() * 100 + 80}px`,
-            backgroundImage: 'url("/images/seaweed.svg")', // 假設你有一個海草SVG
-            backgroundSize: 'contain',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'bottom center',
-            x: `${Math.random() * 40 - 20}px` // 輕微的水平偏移
-          }}
-          animate={{
-            rotate: [0, Math.random() * 10 - 5, 0, Math.random() * -10 + 5, 0],
-            scaleY: [1, 1.05, 1]
-          }}
-          transition={{
-            duration: Math.random() * 10 + 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: Math.random() * 5
-          }}
-        />
-      ))}
+      {/* 圖層 3: 儀表板專用的上升氣泡動畫 - 數量增加，範圍擴大 */}
+      {isClient && generateDashboardBubbles()}
+
+      {/* 圖層 4: 漂浮的海草 - 數量增加，分佈更廣，動態調整 */}
+      {isClient && Array.from({ length: 10 }).map((_, index) => {
+        const side = index % 2 === 0;
+        const initialXOffset = side ? Math.random() * 30 + 5 : Math.random() * 30 + 65;
+        return (
+          <motion.div
+            key={`seaweed-dashboard-${index}`}
+            className={`absolute bottom-0 z-[2] opacity-30`}
+            style={{
+              width: `${Math.random() * 45 + 30}px`,
+              height: `${Math.random() * 150 + 100}px`,
+              backgroundImage: 'url("/images/seaweed.svg")',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'bottom center',
+              left: `${initialXOffset}%`,
+              x: `${Math.random() * 30 - 15}px`,
+              filter: `hue-rotate(${Math.random() * 15 - 7.5}deg) brightness(1.05) saturate(1.1)`
+            }}
+            animate={{
+              rotate: [0, Math.random() * 6 - 3, 0, Math.random() * -6 + 3, 0],
+              scaleY: [1, 1.03, 1, 0.97, 1],
+              scaleX: [1, 1.02, 1, 0.98, 1]
+            }}
+            transition={{
+              duration: Math.random() * 12 + 18,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: Math.random() * 8
+            }}
+          />
+        );
+      })}
+      
+      {/* 圖層 5: 遠景小型海洋生物/光點動畫 (新增) */}
+      {isClient && Array.from({ length: 15 }).map((_, index) => {
+        const duration = Math.random() * 20 + 15;
+        const delay = Math.random() * duration;
+        return (
+          <motion.div
+            key={`distant-life-${index}`}
+            className="absolute rounded-full bg-cyan-200/30 opacity-60"
+            style={{
+              width: `${Math.random() * 3 + 1}px`,
+              height: `${Math.random() * 3 + 1}px`,
+              zIndex: 0,
+            }}
+            initial={{
+              x: `${Math.random() * 100}%`,
+              y: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              x: [`${Math.random() * 100}%`, `${Math.random() * 100}%`, `${Math.random() * 100}%`],
+              y: [`${Math.random() * 100}%`, `${Math.random() * 100}%`, `${Math.random() * 100}%`],
+              opacity: [0.1, Math.random() * 0.4 + 0.2, 0.1],
+              scale: [0.8, Math.random() * 0.5 + 0.8, 0.8]
+            }}
+            transition={{
+              duration: duration,
+              delay: delay,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+        );
+      })}
       
       {/* 隱藏的音效元素 */}
       <audio ref={soundRef} src="/music/like_sound.mp3" preload="auto" />
