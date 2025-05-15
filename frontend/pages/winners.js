@@ -430,88 +430,135 @@ export default function WinnerPage() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <main className="min-h-screen bg-gradient-to-b from-primary to-primary-dark text-white relative overflow-x-hidden">
-        {/* 新增：流動的水波紋背景 */}
+      {/* Main container with fixed background, similar to DonationDashboard */}
+      <div className="min-h-screen bg-primary text-white relative flex flex-col items-center justify-center overflow-hidden">
+        {/* Animated background elements from DonationDashboard */}
         {isClient && (
-          <div className="fixed inset-0 z-0 overflow-hidden">
-            <motion.div 
-              className="absolute inset-0 opacity-5"
-              animate={{ backgroundPositionX: ["0%", "-100%"] }}
-              transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-              style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%', transform: 'scaleY(-1)' }}
-            />
-          </div>
-        )}
-
-        {/* 新增：頁面頂部裝飾性SVG波浪 */}
-        {isClient && (
-          <div className="absolute top-0 left-0 right-0 z-[1] opacity-30 pointer-events-none">
-            <svg viewBox="0 0 1440 120" preserveAspectRatio="none" className="w-full h-auto">
-              <path d="M0,64 C240,128 480,0 720,64 C960,128 1200,0 1440,64 L1440,0 L0,0 Z" fill="rgba(100, 180, 255, 0.2)"></path>
-            </svg>
-          </div>
-        )}
-
-        <audio ref={drawSoundRef} src="/music/draw_sound.mp3" preload="auto"></audio>
-        
-        <AnimatePresence>
-          {showCelebration && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
-            >
-              <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+          <>
+            {/* Flowing water waves background - bottom layer */}
+            <div className="absolute inset-0 z-0 overflow-hidden">
               <motion.div 
-                initial={{ scale: 0.5, rotate: -10 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", damping: 10 }}
-                className="bg-gradient-to-br from-secondary to-primary p-8 rounded-xl shadow-2xl relative z-10 text-center"
-              >
-                <h2 className="text-3xl font-bold mb-2 text-white">{t('congratulations')}</h2>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
-        <LanguageToggle />
-        
-        {showLoginForm && !isAdmin && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-primary-dark p-6 rounded-xl shadow-xl max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4 text-white">{t('adminLogin')}</h3>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                placeholder={t('password')}
-                className="w-full bg-white/10 text-white p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-secondary placeholder-gray-400"
+                className="absolute inset-0 opacity-5"
+                animate={{ backgroundPositionX: ["0%", "100%"] }}
+                transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%' }}
               />
-              <div className="flex justify-between">
-                <button 
-                  onClick={() => {
-                    setShowLoginForm(false);
-                    setPassword('');
-                  }}
-                  className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+            </div>
+
+            {/* Original wave-background - slightly higher z-index */}
+            {/* Assuming wave-background is a global CSS class or defined elsewhere, if not, this might need adjustment */}
+            <div className="absolute inset-0 wave-background opacity-10 z-[1]"></div> 
+
+            {/* Floating seaweed/bubble elements - higher layer */}
+            {Array.from({ length: 5 }).map((_, index) => (
+              <motion.div
+                key={`seaweed-${index}`}
+                className={`absolute bottom-0 z-[2] ${index % 2 === 0 ? 'left-[10%]' : 'right-[10%]'} opacity-20`}
+                style={{
+                  width: `${Math.random() * 30 + 20}px`,
+                  height: `${Math.random() * 100 + 80}px`,
+                  backgroundImage: 'url("/images/seaweed.svg")',
+                  backgroundSize: 'contain',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'bottom center',
+                  x: `${Math.random() * 40 - 20}px`
+                }}
+                animate={{
+                  rotate: [0, Math.random() * 10 - 5, 0, Math.random() * -10 + 5, 0],
+                  scaleY: [1, 1.05, 1]
+                }}
+                transition={{
+                  duration: Math.random() * 10 + 10,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: Math.random() * 5
+                }}
+              />
+            ))}
+            
+            {/* Whale SVG background - even higher z-index */}
+            <svg viewBox="0 0 800 600" className="absolute inset-0 opacity-10 z-[3]">
+              <path
+                d="M550,220 C600,180 620,120 580,100 C540,80 500,120 480,140 C460,100 400,80 360,100 C320,120 300,180 320,220 C300,240 240,320 220,380 C200,440 220,500 300,520 C380,540 460,500 520,440 C580,380 600,300 580,260 C560,220 520,240 550,220 Z"
+                fill="currentColor"
+              />
+              <path
+                d="M498,180 C500,160 510,140 530,120"
+                stroke="currentColor"
+                strokeWidth="8"
+                strokeLinecap="round"
+                fill="none"
+              />
+              <circle cx="540" cy="100" r="10" fill="currentColor" opacity="0.7" />
+              <circle cx="560" cy="80" r="6" fill="currentColor" opacity="0.5" />
+              <circle cx="530" cy="70" r="8" fill="currentColor" opacity="0.6" />
+            </svg>
+          </>
+        )}
+
+        {/* Scrollable content area */}
+        <main className="relative z-10 w-full max-w-6xl mx-auto px-4 py-8 overflow-y-auto h-screen">
+          {/* Audio and Celebration moved inside the scrollable main if they are part of the page content flow */}
+          <audio ref={drawSoundRef} src="/music/draw_sound.mp3" preload="auto"></audio>
+          
+          <AnimatePresence>
+            {showCelebration && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none" 
+              >
+                <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+                <motion.div 
+                  initial={{ scale: 0.5, rotate: -10 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", damping: 10 }}
+                  className="bg-gradient-to-br from-secondary to-primary p-8 rounded-xl shadow-2xl relative z-10 text-center"
                 >
-                  {t('cancel')}
-                </button>
-                <button 
-                  onClick={handleLogin}
-                  className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-opacity-80 transition-colors"
-                >
-                  {t('login')}
-                </button>
+                  <h2 className="text-3xl font-bold mb-2 text-white">{t('congratulations')}</h2>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          <LanguageToggle /> 
+          
+          {showLoginForm && !isAdmin && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="bg-primary-dark p-6 rounded-xl shadow-xl max-w-md w-full">
+                <h3 className="text-xl font-bold mb-4 text-white">{t('adminLogin')}</h3>
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  placeholder={t('password')}
+                  className="w-full bg-white/10 text-white p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-secondary placeholder-gray-400"
+                />
+                <div className="flex justify-between">
+                  <button 
+                    onClick={() => {
+                      setShowLoginForm(false);
+                      setPassword('');
+                    }}
+                    className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button 
+                    onClick={handleLogin}
+                    className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-opacity-80 transition-colors"
+                  >
+                    {t('login')}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        
-        <div className="container mx-auto px-4 py-8 relative z-10">
-          <div className="max-w-6xl mx-auto">
+          )}
+          
+          {/* Container for page title and admin login/logout */}
+          <div className="max-w-6xl mx-auto"> {/* This was the original main content wrapper, keep it for layout */}
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold mb-4">{t('pageTitle')}</h1>
               <p className="text-xl opacity-90">{t('thankYouMessage')}</p>
@@ -559,7 +606,7 @@ export default function WinnerPage() {
             </div>
             
             {activeTab === 'winners' ? (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-8 relative z-10">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-8 relative z-10"> {/* Ensured z-index for content over background */}
                 <div className="flex flex-wrap items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold">{isAdmin ? t('drawManagement') : t('luckyWinners')}</h2>
                   
@@ -930,15 +977,15 @@ export default function WinnerPage() {
                 </p>
               </div>
             </div>
-          </div>
+          </div> {/* End of original main content wrapper */}
           
           <div className="mt-8 text-center">
             <a href="/" className={`text-secondary hover:underline`}>
               {t('returnToDashboard')}
             </a>
           </div>
-        </div>
-      </main>
+        </main> {/* End of scrollable content area */}
+      </div> {/* End of main container with fixed background */}
     </>
   );
-} 
+}
