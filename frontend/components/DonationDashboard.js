@@ -390,8 +390,45 @@ export default function DonationDashboard() {
   
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-primary text-white relative overflow-hidden">
-      {/* 背景裝飾 */}
-      <div className="absolute inset-0 wave-background opacity-10 z-0"></div>
+      {/* 新增：流動的水波紋背景 - 更底層 */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <motion.div 
+          className="absolute inset-0 bg-wave-pattern opacity-5"
+          animate={{ backgroundPositionX: ["0%", "100%"] }}
+          transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+          style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%' }}
+        />
+      </div>
+
+      {/* 原有的 wave-background - 提高一點 z-index */}
+      <div className="absolute inset-0 wave-background opacity-10 z-[1]"></div>
+
+      {/* 新增：漂浮的海草或氣泡元素 - 更高層 */}
+      {isClient && Array.from({ length: 5 }).map((_, index) => (
+        <motion.div
+          key={`seaweed-${index}`}
+          className={`absolute bottom-0 z-[2] ${index % 2 === 0 ? 'left-[10%]' : 'right-[10%]'} opacity-20`}
+          style={{
+            width: `${Math.random() * 30 + 20}px`,
+            height: `${Math.random() * 100 + 80}px`,
+            backgroundImage: 'url("/images/seaweed.svg")', // 假設你有一個海草SVG
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'bottom center',
+            x: `${Math.random() * 40 - 20}px` // 輕微的水平偏移
+          }}
+          animate={{
+            rotate: [0, Math.random() * 10 - 5, 0, Math.random() * -10 + 5, 0],
+            scaleY: [1, 1.05, 1]
+          }}
+          transition={{
+            duration: Math.random() * 10 + 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: Math.random() * 5
+          }}
+        />
+      ))}
       
       {/* 隱藏的音效元素 */}
       <audio ref={soundRef} src="/music/like_sound.mp3" preload="auto" />
@@ -432,7 +469,7 @@ export default function DonationDashboard() {
       </AnimatePresence>
       
       {/* 鯨魚 SVG 背景 */}
-      <svg viewBox="0 0 800 600" className="absolute inset-0 opacity-10 z-0">
+      <svg viewBox="0 0 800 600" className="absolute inset-0 opacity-10 z-[3]">
         <path
           d="M550,220 C600,180 620,120 580,100 C540,80 500,120 480,140 C460,100 400,80 360,100 C320,120 300,180 320,220 C300,240 240,320 220,380 C200,440 220,500 300,520 C380,540 460,500 520,440 C580,380 600,300 580,260 C560,220 520,240 550,220 Z"
           fill="currentColor"
@@ -451,7 +488,7 @@ export default function DonationDashboard() {
         <circle cx="530" cy="70" r="8" fill="currentColor" opacity="0.6" />
       </svg>
       
-      <div className="z-10 w-full max-w-4xl px-4">
+      <div className="z-10 w-full max-w-4xl px-4 relative">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider mb-2 text-center break-normal hyphens-auto px-2 whitespace-pre-line">
           {t('title')}
         </h1>

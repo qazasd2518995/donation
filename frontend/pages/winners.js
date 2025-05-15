@@ -67,9 +67,9 @@ const getPrizeDetailByLanguage = (prize, language) => {
 };
 
 export default function WinnerPage() {
-  // 添加語言支持
   const { language } = useLanguage();
   const { t } = useTranslation('draw');
+  const [isClient, setIsClient] = useState(false);
   
   // 判斷留言是否包含hashtag
   const hasHashtag = (text, tag = 'all') => {
@@ -104,10 +104,6 @@ export default function WinnerPage() {
   const [showCelebration, setShowCelebration] = useState(false);
   const drawSoundRef = useRef(null);
 
-  const [currentScrollY, setCurrentScrollY] = useState(0);
-  // SCROLL_THRESHOLD will be set in useEffect after window is available
-  const [scrollThreshold, setScrollThreshold] = useState(0);
-  
   // 過濾出符合條件的留言
   const filteredComments = comments.filter(comment => 
     hasHashtag(comment.text, filterHashtag)
@@ -396,55 +392,24 @@ export default function WinnerPage() {
   };
 
   useEffect(() => {
+    setIsClient(true); // 設定客戶端已掛載
     fetchWinners();
     fetchComments();
     fetchPrizes();
     
-    // 只在客戶端執行與 window 相關的代碼
-    if (typeof window !== 'undefined') {
-      // 初始化滾動偵測相關的數值
-      const updateScrollValues = () => {
-        // 獲取文檔的總高度
-        const documentHeight = Math.max(
-          document.body.scrollHeight,
-          document.body.offsetHeight,
-          document.documentElement.clientHeight,
-          document.documentElement.scrollHeight,
-          document.documentElement.offsetHeight
-        );
+    if (typeof window !== 'undefined') { // 保留 localStorage 相關邏輯的客戶端檢查
+        const adminStatus = localStorage.getItem('drawAdmin');
+        if (adminStatus === 'true') {
+            setIsAdmin(true);
+        }
         
-        // 設置一個閾值，代表頁面的中間點
-        setScrollThreshold(documentHeight * 0.5);
-      };
-      
-      updateScrollValues();
-
-      const adminStatus = localStorage.getItem('drawAdmin');
-      if (adminStatus === 'true') {
-        setIsAdmin(true);
-      }
-      
-      const handleScroll = () => {
-        setCurrentScrollY(window.scrollY);
-      };
-
-      window.addEventListener('scroll', handleScroll, { passive: true });
-      
-      const intervalId = setInterval(() => {
-        fetchComments();
-      }, 30000);
-      
-      // 更新resize處理器
-      const handleResize = () => {
-        updateScrollValues();
-      };
-      window.addEventListener('resize', handleResize);
-
-      return () => {
-        window.removeEventListener('scroll', handleScroll);
-        window.removeEventListener('resize', handleResize);
-        clearInterval(intervalId);
-      };
+        const intervalId = setInterval(() => {
+            fetchComments();
+        }, 30000);
+        
+        return () => {
+            clearInterval(intervalId);
+        };
     }
   }, []);
 
@@ -456,47 +421,6 @@ export default function WinnerPage() {
     console.log('當前追蹤狀態:', followingUsers);
   };
 
-  // 根據滾動位置計算文字顏色，從頂部的白色到中間的灰色再到底部的黑色
-  const getTextColorStyle = () => {
-    if (typeof window === 'undefined') {
-      return { color: 'white' }; // 服務器端渲染默認返回白色
-    }
-    
-    // 獲取文檔總高度
-    const documentHeight = Math.max(
-      document.body.scrollHeight,
-      document.body.offsetHeight,
-      document.documentElement.clientHeight,
-      document.documentElement.scrollHeight,
-      document.documentElement.offsetHeight
-    );
-    
-    // 可視區域高度
-    const viewportHeight = window.innerHeight;
-    
-    // 可滾動的總距離
-    const scrollableDistance = documentHeight - viewportHeight;
-    
-    // 當前滾動進度比例 (0 到 1)
-    const scrollProgress = Math.min(currentScrollY / scrollableDistance, 1);
-    
-    // 根據滾動進度計算顏色
-    if (scrollProgress <= 0.5) {
-      // 從白色 (255,255,255) 到灰色 (128,128,128)
-      // 前半段滾動 (0-0.5)
-      const intensity = Math.round(255 - scrollProgress * 2 * (255 - 128));
-      return { color: `rgb(${intensity}, ${intensity}, ${intensity})` };
-    } else {
-      // 從灰色 (128,128,128) 到黑色 (0,0,0)
-      // 後半段滾動 (0.5-1.0)
-      const intensity = Math.round(128 - (scrollProgress - 0.5) * 2 * 128);
-      return { color: `rgb(${intensity}, ${intensity}, ${intensity})` };
-    }
-  };
-
-  // 獲取基於滾動位置的文字顏色類名
-  const dynamicTextColorClass = currentScrollY > scrollThreshold ? 'text-black' : 'text-white';
-  
   return (
     <>
       <Head>
@@ -506,8 +430,28 @@ export default function WinnerPage() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <main className={`min-h-screen bg-gradient-to-b from-primary to-primary-dark transition-colors duration-300 ease-in-out`} style={getTextColorStyle()}>
-        {/* Apply transition-colors to main container to affect all children inheriting text color */}
+      <main className="min-h-screen bg-gradient-to-b from-primary to-primary-dark text-white relative overflow-hidden">
+        {/* 新增：流動的水波紋背景 */}
+        {isClient && (
+          <div className="absolute inset-0 z-0 overflow-hidden">
+            <motion.div 
+              className="absolute inset-0 opacity-5"
+              animate={{ backgroundPositionX: ["0%", "-100%"] }} // 與主頁方向相反或不同速度
+              transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+              style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%', transform: 'scaleY(-1)' /* 波紋反轉 */ }}
+            />
+          </div>
+        )}
+
+        {/* 新增：頁面頂部裝飾性SVG波浪 */}
+        {isClient && (
+            <div className="absolute top-0 left-0 right-0 z-[1] opacity-30 pointer-events-none">
+                <svg viewBox="0 0 1440 120" preserveAspectRatio="none" className="w-full h-auto">
+                    <path d="M0,64 C240,128 480,0 720,64 C960,128 1200,0 1440,64 L1440,0 L0,0 Z" fill="rgba(100, 180, 255, 0.2)"></path>
+                </svg>
+            </div>
+        )}
+
         <audio ref={drawSoundRef} src="/music/draw_sound.mp3" preload="auto"></audio>
         
         <AnimatePresence>
@@ -516,7 +460,7 @@ export default function WinnerPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+              className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
             >
               <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
               <motion.div 
@@ -566,7 +510,7 @@ export default function WinnerPage() {
           </div>
         )}
         
-        <div className={`container mx-auto px-4 py-10`}>
+        <div className="container mx-auto px-4 py-10 text-white relative z-[5]">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
               <h1 className="text-4xl font-bold mb-2">{t('pageTitle')}</h1>
@@ -577,14 +521,14 @@ export default function WinnerPage() {
               <div className="bg-secondary rounded-full p-1 inline-flex">
                 <button 
                   onClick={() => setActiveTab('winners')}
-                  className={`px-4 py-2 rounded-full transition-colors duration-300 ease-in-out ${activeTab === 'winners' ? 'bg-primary-dark text-white' : 'hover:bg-primary-dark/50'}`}
+                  className={`px-4 py-2 rounded-full transition-colors duration-300 ease-in-out ${activeTab === 'winners' ? 'bg-primary-dark text-white' : 'text-white hover:bg-primary-dark/50'}`}
                 >
                   {t('resultsTab')}
                 </button>
                 {isAdmin && (
                   <button 
                     onClick={() => setActiveTab('verify')}
-                    className={`px-4 py-2 rounded-full transition-colors duration-300 ease-in-out ${activeTab === 'verify' ? 'bg-primary-dark text-white' : 'hover:bg-primary-dark/50'}`}
+                    className={`px-4 py-2 rounded-full transition-colors duration-300 ease-in-out ${activeTab === 'verify' ? 'bg-primary-dark text-white' : 'text-white hover:bg-primary-dark/50'}`}
                   >
                     {t('verifyTab')}
                   </button>
@@ -648,7 +592,7 @@ export default function WinnerPage() {
                   )}
                 </div>
                 
-                <div className={`text-center text-sm mb-6 text-current ${currentScrollY <= scrollThreshold ? 'opacity-70' : 'opacity-100'} transition-opacity duration-300 ease-in-out`}>
+                <div className={`text-center text-sm mb-6 text-white/70 transition-opacity duration-300 ease-in-out`}>
                   {winners.length > 0 && (
                     <p>
                       {t('totalWinners', { count: winners.length })}
@@ -661,7 +605,7 @@ export default function WinnerPage() {
                     <div className="w-16 h-16 border-4 border-secondary border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 ) : error ? (
-                  <div className={`bg-red-500/20 text-center p-4 rounded-lg ${currentScrollY > scrollThreshold ? 'text-red-700' : 'text-red-300'} transition-colors duration-300 ease-in-out`}> 
+                  <div className={`bg-red-500/20 text-center p-4 rounded-lg text-red-300 transition-colors duration-300 ease-in-out`}> 
                     {error}
                   </div>
                 ) : (
@@ -676,23 +620,23 @@ export default function WinnerPage() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             transition={{ delay: index * 0.05 }}
-                            className="bg-white/10 p-4 rounded-lg"
+                            className="bg-white/10 p-4 rounded-lg text-white"
                           >
                             <div className="flex justify-between items-start">
-                              <div className="font-bold truncate text-current">{winner.user}</div>
+                              <div className="font-bold truncate">{winner.user}</div>
                               {prize && (
                                 <div className="bg-secondary/80 text-xs px-2 py-1 rounded-full text-white">
                                   {getPrizeNameByLanguage(prize, language)}
                                 </div>
                               )}
                             </div>
-                            <div className={`text-sm mt-2 line-clamp-2 text-current ${currentScrollY <= scrollThreshold ? 'opacity-70' : 'opacity-90'} transition-opacity duration-300 ease-in-out`}>{winner.text}</div>
+                            <div className={`text-sm mt-2 line-clamp-2 opacity-90`}>{winner.text}</div>
                             {prize && (
                               <div className="mt-3 bg-white/10 p-2 rounded text-sm">
                                 <div className={`font-bold text-secondary`}>{getPrizeNameByLanguage(prize, language)}</div>
                                 <div className="text-current">{getPrizeDetailByLanguage(prize, language)}</div>
                                 {prize.value > 0 && (
-                                  <div className={`text-xs mt-1 text-current ${currentScrollY <= scrollThreshold ? 'opacity-70' : 'opacity-90'} transition-opacity duration-300 ease-in-out`}>
+                                  <div className={`text-xs mt-1 opacity-90`}>
                                     {language === 'zh' ? `價值: NT$ ${prize.value.toLocaleString()}` : `Value: NT$ ${prize.value.toLocaleString()}`}
                                   </div>
                                 )}
@@ -706,7 +650,7 @@ export default function WinnerPage() {
                 )}
               </div>
             ) : (
-              <div className="bg-white/10 rounded-xl p-6 mb-8">
+              <div className="bg-white/10 rounded-xl p-6 mb-8 text-white">
                 <div className="flex flex-wrap items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold">{t('verifyUsers')}</h2>
                   
@@ -715,7 +659,7 @@ export default function WinnerPage() {
                     <select 
                       value={filterHashtag} 
                       onChange={(e) => setFilterHashtag(e.target.value)}
-                      className={`bg-white/20 rounded px-2 py-1 text-current focus:text-black transition-colors duration-300 ease-in-out`}
+                      className={`bg-white/20 rounded px-2 py-1 text-white focus:text-black transition-colors duration-300 ease-in-out`}
                     >
                       <option value="all">{t('allHashtags')}</option>
                       <option value="P">#P</option>
@@ -743,16 +687,16 @@ export default function WinnerPage() {
                 
                 <div className={`bg-black/20 rounded-lg p-4 mb-6 text-current`}>
                   <h3 className={`font-bold text-secondary mb-2`}>{t('verificationInstructions')}</h3>
-                  <p className={`text-sm mb-2 ${currentScrollY <= scrollThreshold ? 'opacity-80' : 'opacity-100'} transition-opacity duration-300 ease-in-out`}>{t('verificationDetails')}</p>
-                  <p className={`text-sm font-bold ${currentScrollY <= scrollThreshold ? 'opacity-80' : 'opacity-100'} transition-opacity duration-300 ease-in-out`}>{t('onlyVerified')}</p>
+                  <p className={`text-sm mb-2 opacity-100`}>{t('verificationDetails')}</p>
+                  <p className={`text-sm font-bold opacity-100`}>{t('onlyVerified')}</p>
                   <br />
-                  <span className={`${currentScrollY <= scrollThreshold ? 'opacity-80' : 'opacity-100'} transition-opacity duration-300 ease-in-out`}>
+                  <span className={`opacity-100`}>
                     {t('qualifiedComments', { count: filteredComments.length })} 
                     | {t('verifiedFollowing', { count: Object.values(followingUsers).filter(Boolean).length })}
                   </span>
                 </div>
                 
-                <div className={`text-center text-sm mb-4 text-current ${currentScrollY <= scrollThreshold ? 'opacity-70' : 'opacity-100'} transition-opacity duration-300 ease-in-out`}>
+                <div className={`text-center text-sm mb-4 text-white/70 transition-opacity duration-300 ease-in-out`}>
                   {t('qualifiedComments', { count: filteredComments.length })} 
                   | {t('verifiedFollowing', { count: Object.values(followingUsers).filter(Boolean).length })}
                 </div>
@@ -762,7 +706,7 @@ export default function WinnerPage() {
                     <div className="w-16 h-16 border-4 border-secondary border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 ) : error ? (
-                  <div className={`bg-red-500/20 text-center p-4 rounded-lg ${currentScrollY > scrollThreshold ? 'text-red-700' : 'text-red-300'} transition-colors duration-300 ease-in-out`}>
+                  <div className={`bg-red-500/20 text-center p-4 rounded-lg text-red-300 transition-colors duration-300 ease-in-out`}>
                     {error}
                   </div>
                 ) : (
@@ -778,7 +722,7 @@ export default function WinnerPage() {
                           >
                             {comment.user}
                           </a>
-                          <div className={`text-sm mt-2 text-current ${currentScrollY <= scrollThreshold ? 'opacity-70' : 'opacity-100'} transition-opacity duration-300 ease-in-out`}>{comment.text}</div>
+                          <div className={`text-sm mt-2 text-current opacity-90`}>{comment.text}</div>
                         </div>
                         <div className="ml-4 flex items-center">
                           <label className={`flex items-center space-x-2 cursor-pointer text-current`}>
@@ -807,9 +751,9 @@ export default function WinnerPage() {
               </div>
             )}
             
-            <div className={`bg-white/10 rounded-xl p-6 text-current`}>
+            <div className={`bg-white/10 rounded-xl p-6 text-white`}>
               <h2 className={`text-2xl font-bold mb-4`}>{t('eventRules')}</h2>
-              <div className={`space-y-4 text-sm ${currentScrollY <= scrollThreshold ? 'opacity-80' : 'opacity-100'} transition-opacity duration-300 ease-in-out`}>
+              <div className={`space-y-4 text-sm opacity-100`}>
                 <p className={`text-xl font-bold text-secondary`}>{t('projectTitle')}</p>
                 <p>
                   {t('projectDescription')}
