@@ -66,6 +66,47 @@ const getPrizeDetailByLanguage = (prize, language) => {
   }
 };
 
+// 新增：動態氣泡生成函數
+const generateDynamicBubbles = (count) => {
+  const bubbles = [];
+  if (typeof window === 'undefined') return bubbles; // 確保僅在客戶端執行
+
+  for (let i = 0; i < count; i++) {
+    const size = Math.random() * 18 + 4; // 氣泡大小 4px 到 22px
+    const initialX = Math.random() * 100; 
+    const duration = Math.random() * 12 + 10; // 持續時間 10秒 到 22秒
+    const delay = Math.random() * 8; // 延遲 0秒 到 8秒
+
+    bubbles.push(
+      <motion.div
+        key={`winner-bubble-${i}`}
+        className="absolute rounded-full bg-blue-200/20 backdrop-blur-xs"
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          left: `${initialX}%`,
+          bottom: `${Math.random() * 20 - 10}%`, // 起始位置稍微隨機，靠近底部
+          zIndex: 2, 
+        }}
+        animate={{
+          y: [`0%`, `-105vh`], // 上升超過可視區域
+          x: [`${initialX}%`, `${initialX + (Math.random() * 8 - 4)}%`], // 輕微水平漂移
+          opacity: [0, 0.7, 0.7, 0], // 漸顯，保持，漸隱
+          scale: [0.5, 1, Math.random() * 0.6 + 0.7], // 從小變大，然後略微變化
+        }}
+        transition={{
+          duration: duration,
+          delay: delay,
+          repeat: Infinity,
+          ease: "linear",
+          times: [0, 0.1, 0.8, 1] // 控制 opacity 的時間點
+        }}
+      />
+    );
+  }
+  return bubbles;
+};
+
 export default function WinnerPage() {
   const { language } = useLanguage();
   const { t } = useTranslation('draw');
@@ -435,64 +476,53 @@ export default function WinnerPage() {
         {/* Animated background elements from DonationDashboard */}
         {isClient && (
           <>
-            {/* Flowing water waves background - bottom layer */}
+            {/* 圖層1: 動態水波紋 - 調整後 */} 
             <div className="absolute inset-0 z-0 overflow-hidden">
               <motion.div 
-                className="absolute inset-0 opacity-5"
-                animate={{ backgroundPositionX: ["0%", "100%"] }}
-                transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-                style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%' }}
+                className="absolute inset-0 opacity-8" // 透明度調整
+                animate={{ backgroundPositionX: ["0%", "-200%"] }} // 動畫調整
+                transition={{ duration: 75, repeat: Infinity, ease: "linear" }} // 速度調整
+                style={{
+                  backgroundImage: 'url("/images/light-waves.svg")',
+                  backgroundRepeat: 'repeat-x',
+                  backgroundSize: 'auto 100%',
+                  filter: 'hue-rotate(15deg) saturate(1.1) brightness(0.95)' // 色調微調
+                }}
               />
             </div>
 
-            {/* Original wave-background - slightly higher z-index */}
-            {/* Assuming wave-background is a global CSS class or defined elsewhere, if not, this might need adjustment */}
-            <div className="absolute inset-0 wave-background opacity-10 z-[1]"></div> 
-
-            {/* Floating seaweed/bubble elements - higher layer */}
-            {Array.from({ length: 5 }).map((_, index) => (
+            {/* 圖層2: 海草 - 強化版 */}
+            {Array.from({ length: 7 }).map((_, index) => ( // 增加數量
               <motion.div
-                key={`seaweed-${index}`}
-                className={`absolute bottom-0 z-[2] ${index % 2 === 0 ? 'left-[10%]' : 'right-[10%]'} opacity-20`}
+                key={`seaweed-winner-${index}`}
+                className={`absolute z-[1] ${index % 2 === 0 ? 'left-[8%]' : 'right-[8%]' } opacity-30`} // 位置和透明度微調
                 style={{
-                  width: `${Math.random() * 30 + 20}px`,
-                  height: `${Math.random() * 100 + 80}px`,
+                  width: `${Math.random() * 35 + 20}px`, // 大小調整
+                  height: `${Math.random() * 110 + 90}px`,
                   backgroundImage: 'url("/images/seaweed.svg")',
                   backgroundSize: 'contain',
                   backgroundRepeat: 'no-repeat',
                   backgroundPosition: 'bottom center',
-                  x: `${Math.random() * 40 - 20}px`
+                  x: `${Math.random() * 50 - 25}px`, // 水平位置隨機性增加
+                  bottom: `${Math.random() * -40 + 5}px`, // 底部位置隨機，可部分超出
+                  filter: `hue-rotate(${Math.random() * 20 - 10}deg)` // 海草顏色微小隨機變化
                 }}
                 animate={{
-                  rotate: [0, Math.random() * 10 - 5, 0, Math.random() * -10 + 5, 0],
-                  scaleY: [1, 1.05, 1]
+                  rotate: [0, Math.random() * 8 - 4, 0, Math.random() * -8 + 4, 0],
+                  scaleY: [1, 1.03, 1, 0.97, 1],
+                  scaleX: [1, 1.02, 1, 0.98, 1]
                 }}
                 transition={{
-                  duration: Math.random() * 10 + 10,
+                  duration: Math.random() * 12 + 12, // 擺動速度調整
                   repeat: Infinity,
                   ease: "easeInOut",
-                  delay: Math.random() * 5
+                  delay: Math.random() * 7
                 }}
               />
             ))}
-            
-            {/* Whale SVG background - even higher z-index */}
-            <svg viewBox="0 0 800 600" className="absolute inset-0 opacity-10 z-[3]">
-              <path
-                d="M550,220 C600,180 620,120 580,100 C540,80 500,120 480,140 C460,100 400,80 360,100 C320,120 300,180 320,220 C300,240 240,320 220,380 C200,440 220,500 300,520 C380,540 460,500 520,440 C580,380 600,300 580,260 C560,220 520,240 550,220 Z"
-                fill="currentColor"
-              />
-              <path
-                d="M498,180 C500,160 510,140 530,120"
-                stroke="currentColor"
-                strokeWidth="8"
-                strokeLinecap="round"
-                fill="none"
-              />
-              <circle cx="540" cy="100" r="10" fill="currentColor" opacity="0.7" />
-              <circle cx="560" cy="80" r="6" fill="currentColor" opacity="0.5" />
-              <circle cx="530" cy="70" r="8" fill="currentColor" opacity="0.6" />
-            </svg>
+
+            {/* 圖層3: 新增動態上升氣泡 */}
+            {generateDynamicBubbles(30)} 
           </>
         )}
 
