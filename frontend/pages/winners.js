@@ -430,26 +430,26 @@ export default function WinnerPage() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <main className="min-h-screen bg-gradient-to-b from-primary to-primary-dark text-white relative overflow-hidden">
+      <main className="min-h-screen bg-gradient-to-b from-primary to-primary-dark text-white relative overflow-x-hidden">
         {/* 新增：流動的水波紋背景 */}
         {isClient && (
-          <div className="absolute inset-0 z-0 overflow-hidden">
+          <div className="fixed inset-0 z-0 overflow-hidden">
             <motion.div 
               className="absolute inset-0 opacity-5"
-              animate={{ backgroundPositionX: ["0%", "-100%"] }} // 與主頁方向相反或不同速度
+              animate={{ backgroundPositionX: ["0%", "-100%"] }}
               transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-              style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%', transform: 'scaleY(-1)' /* 波紋反轉 */ }}
+              style={{ backgroundImage: 'url("/images/light-waves.svg")', backgroundRepeat: 'repeat-x', backgroundSize: 'auto 100%', transform: 'scaleY(-1)' }}
             />
           </div>
         )}
 
         {/* 新增：頁面頂部裝飾性SVG波浪 */}
         {isClient && (
-            <div className="absolute top-0 left-0 right-0 z-[1] opacity-30 pointer-events-none">
-                <svg viewBox="0 0 1440 120" preserveAspectRatio="none" className="w-full h-auto">
-                    <path d="M0,64 C240,128 480,0 720,64 C960,128 1200,0 1440,64 L1440,0 L0,0 Z" fill="rgba(100, 180, 255, 0.2)"></path>
-                </svg>
-            </div>
+          <div className="absolute top-0 left-0 right-0 z-[1] opacity-30 pointer-events-none">
+            <svg viewBox="0 0 1440 120" preserveAspectRatio="none" className="w-full h-auto">
+              <path d="M0,64 C240,128 480,0 720,64 C960,128 1200,0 1440,64 L1440,0 L0,0 Z" fill="rgba(100, 180, 255, 0.2)"></path>
+            </svg>
+          </div>
         )}
 
         <audio ref={drawSoundRef} src="/music/draw_sound.mp3" preload="auto"></audio>
@@ -510,12 +510,34 @@ export default function WinnerPage() {
           </div>
         )}
         
-        <div className="container mx-auto px-4 py-10 text-white relative z-[5]">
+        <div className="container mx-auto px-4 py-8 relative z-10">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-10">
-              <h1 className="text-4xl font-bold mb-2">{t('pageTitle')}</h1>
-              <p className="text-xl opacity-80">{t('thankYouMessage')}</p>
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold mb-4">{t('pageTitle')}</h1>
+              <p className="text-xl opacity-90">{t('thankYouMessage')}</p>
             </div>
+            
+            {isAdmin && (
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={handleLogout}
+                  className="text-secondary hover:text-white transition-colors duration-300"
+                >
+                  {t('logout')}
+                </button>
+              </div>
+            )}
+            
+            {!isAdmin && (
+              <div className="text-center mb-4">
+                <button
+                  onClick={() => setShowLoginForm(true)}
+                  className="text-secondary hover:text-white transition-colors duration-300"
+                >
+                  {t('adminLogin')}
+                </button>
+              </div>
+            )}
             
             <div className="flex justify-center mb-6">
               <div className="bg-secondary rounded-full p-1 inline-flex">
@@ -537,7 +559,7 @@ export default function WinnerPage() {
             </div>
             
             {activeTab === 'winners' ? (
-              <div className="bg-white/10 rounded-xl p-6 mb-8">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-8 relative z-10">
                 <div className="flex flex-wrap items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold">{isAdmin ? t('drawManagement') : t('luckyWinners')}</h2>
                   
