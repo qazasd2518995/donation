@@ -23,20 +23,27 @@ export default function DonationDashboard() {
   const [playSound, setPlaySound] = useState(false);
   const soundRef = useRef(null);
   const [isClient, setIsClient] = useState(false);
+  const [droppingFish, setDroppingFish] = useState(null);
   
   useEffect(() => {
     setIsClient(true);
     const now = new Date();
     setStatisticDate(`${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`);
     loadDashboardData();
-    const intervalId = setInterval(() => loadDashboardData(), 30000);
+    const intervalId = setInterval(() => loadDashboardData(), 5000);
     return () => clearInterval(intervalId);
   }, []);
   
   useEffect(() => {
-    if (!loading && prevLikes > 0 && likes > prevLikes) {
+    if (!loading && likes > prevLikes) {
       setShowNewLikeAnimation(true);
       setPlaySound(true);
+      
+      setDroppingFish({
+        id: `drop-${Date.now()}`,
+        startX: `${Math.random() * 60 + 20}%`, 
+      });
+
       const animationTimeout = setTimeout(() => {
         setShowNewLikeAnimation(false);
       }, 2000);
@@ -571,6 +578,50 @@ export default function DonationDashboard() {
         <circle cx="560" cy="80" r="6" fill="currentColor" opacity="0.5" />
         <circle cx="530" cy="70" r="8" fill="currentColor" opacity="0.6" />
       </svg>
+      
+      {/* 新增：掉落的魚動畫元件 */}
+      {droppingFish && (
+        <motion.div
+          key={droppingFish.id}
+          className="absolute z-[100]" // 高 z-index 確保在頂層
+          style={{
+            left: droppingFish.startX,
+            // Y軸起始位置由 initial.y 控制
+          }}
+          initial={{
+            y: 200, // 估計的起始Y軸位置 (在計數器標題上方)
+            opacity: 0,
+            scale: 0.3,
+            rotate: 0,
+          }}
+          animate={{
+            y: 550, // 估計的目標Y軸位置 (大約在魚計數器中間) - 可能需要微調
+            opacity: [0, 1, 1, 0.5, 0], // 淡入 -> 保持 -> 淡出
+            scale: [0.3, 1, 0.8],
+            rotate: [0, Math.random() > 0.5 ? -270 : 270, Math.random() > 0.5 ? -540 : 540], // 隨機旋轉方向和次數
+          }}
+          transition={{
+            duration: 2.0, // 動畫總時長
+            ease: "easeIn",
+            opacity: { times: [0, 0.2, 0.7, 0.9, 1], duration: 2.0 },
+            scale: { duration: 1.0, ease: "easeOut" },
+            rotate: { duration: 2.0, ease: "linear" }
+          }}
+          onAnimationComplete={() => setDroppingFish(null)} // 動畫完成後清除狀態
+        >
+          {/* 掉落的魚的SVG圖案 */}
+          <svg width="50" height="30" viewBox="0 0 10 6">
+            <defs>
+              <linearGradient id="droppingFishGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{stopColor: '#FFEF9A', stopOpacity:1}} />
+                <stop offset="100%" style={{stopColor: '#FFC371', stopOpacity:1}} />
+              </linearGradient>
+            </defs>
+            <path d="M0 3 Q1.5 0 4 1 Q6.5 0 8 3 Q6.5 6 4 5 Q1.5 6 0 3 Z" fill="url(#droppingFishGradient)" stroke="#FFA500" strokeWidth="0.2"/>
+            <circle cx="2.5" cy="2.8" r="0.3" fill="black"/> {/* 假設魚預設朝右，眼睛在左邊 */} 
+          </svg>
+        </motion.div>
+      )}
       
       <div className="z-10 w-full max-w-4xl px-4 relative">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider mb-2 text-center break-normal hyphens-auto px-2 whitespace-pre-line">
