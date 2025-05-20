@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, useRef } from 'react';
 const AudioContext = createContext();
 
 export function AudioProvider({ children }) {
-  const audioSrc = useRef("/music/theme_song_fa.mp3");
+  const audioSrc = useRef("/music/theme_song_fa.MP3");
   const audioRef = useRef(null);
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
