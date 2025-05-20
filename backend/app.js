@@ -13,7 +13,7 @@ const FB_API = `https://graph.facebook.com/v19.0`;
 // 使用新的長期令牌，有效期至 7/8/2025
 const IG_TOKEN = process.env.IG_TOKEN || "EAAZABZBFyTPjUBO81GfrzZBLej4EhHFZAL2a996JziCFuybnEehqSKMJnee7aRcBJE0j2saqWZCQb22ydzx6ysul8dyaJ0sh6sTV0SC10PhDHh7FVqNyMkjfYAaDyOncZAPsiqX7aqhacRvKZAuJb4w5YjIvwgvy7wdSqbouJtecOkSdZBCKPuywEx51cI93qPvKkrZBdJOZBZA";
 const IG_USER_ID = process.env.IG_USER_ID || "17841474086492936"; // 正確的Instagram帳號ID
-const IG_POST_ID = process.env.IG_POST_ID || "18079076146744868"; // 正確的Instagram貼文ID
+const IG_POST_ID = process.env.IG_POST_ID || "17999113556737481"; // 正確的Instagram貼文ID
 const PORT = process.env.PORT || 10000; // 支援Render環境變數
 
 // 全局變量存儲抽獎結果
